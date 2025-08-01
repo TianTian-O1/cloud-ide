@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付成功 - 天天AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .success-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+        }
+        
+        .status-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .success-icon { color: #28a745; animation: bounce 1s infinite; }
+        .loading-icon { color: #007bff; animation: pulse 1.5s infinite; }
+        .error-icon { color: #dc3545; }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .order-info p {
+            margin: 8px 0;
+            color: #495057;
+            font-size: 16px;
+        }
+        
+        .order-info strong {
+            color: #2c3e50;
+            min-width: 100px;
+            display: inline-block;
+        }
+        
+        .status-success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .verification-info {
+            margin-bottom: 30px;
+        }
+        
+        .verification-info p {
+            color: #6c757d;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .loading-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #20c997);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .vip-message {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .activation-time {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .error-message ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 120px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .debug-info {
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .debug-info details {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .debug-info summary {
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        .debug-info pre {
+            background: #fff;
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            overflow: auto;
+            margin: 5px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div id="statusIcon" class="status-icon loading-icon">⚡</div>
+        <h1 id="statusTitle">正在验证支付...</h1>
+        
+        <div id="orderInfo" class="order-info" style="display: none;">
+            <!-- 订单信息将通过JavaScript填充 -->
+        </div>
+        
+        <div id="verificationInfo" class="verification-info">
+            <p>正在验证支付状态并激活VIP权限...</p>
+            <div class="loading-bar">
+                <div id="loadingProgress" class="loading-progress" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div id="successMessage" class="success-message" style="display: none;">
+            <p class="vip-message">🎉 恭喜！您的VIP权限已成功激活</p>
+            <p class="activation-time" id="activationTime"></p>
+        </div>
+        
+        <div id="successActions" style="display: none;"></div>
+        
+        <div id="errorMessage" class="error-message" style="display: none;">
+            <p>支付验证失败，可能的原因：</p>
+            <ul>
+                <li>签名验证失败</li>
+                <li>订单状态异常</li>
+                <li>网络连接问题</li>
+            </ul>
+            <p>请联系客服处理：support@tiantianai.co</p>
+            <div id="errorDetails" style="margin-top: 10px; font-size: 12px; color: #888;"></div>
+        </div>
+        
+        <div class="actions">
+            <button id="retryBtn" class="btn btn-primary" onclick="retryPayment()" style="display: none;">重新支付</button>
+            <a href="http://47.242.187.2:8080" class="btn btn-primary">返回首页</a>
+            <a href="http://47.242.187.2:8080/#/login" class="btn btn-secondary">重新登录</a>
+        </div>
+        
+        <div class="debug-info" id="debugInfo" style="display: none;">
+            <details>
+                <summary>调试信息（点击展开）</summary>
+                <pre id="debugData"></pre>
+            </details>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let paymentData = null;
+        let verificationStatus = 'loading';
+        let progress = 0;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('支付成功页面加载完成');
+            initPaymentInfo();
+            startProgress();
+            verifyPayment();
+        });
+
+        // 解析URL参数
+        function initPaymentInfo() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                paymentData = {
+                    pid: urlParams.get('pid'),
+                    trade_no: urlParams.get('trade_no'),
+                    out_trade_no: urlParams.get('out_trade_no'),
+                    type: urlParams.get('type'),
+                    name: decodeURIComponent(urlParams.get('name') || ''),
+                    money: urlParams.get('money'),
+                    trade_status: urlParams.get('trade_status'),
+                    sign: urlParams.get('sign'),
+                    sign_type: urlParams.get('sign_type')
+                };
+                
+                console.log('解析的支付数据:', paymentData);
+                
+                if (paymentData.out_trade_no) {
+                    displayOrderInfo();
+                } else {
+                    console.error('未找到支付回调参数');
+                    showError('未找到支付回调参数', '请确认从正确的支付链接访问此页面');
+                }
+            } catch (error) {
+                console.error('参数解析失败:', error);
+                showError('参数解析失败', error.message);
+            }
+        }
+
+        // 显示订单信息
+        function displayOrderInfo() {
+            const orderInfo = document.getElementById('orderInfo');
+            const paymentTypeName = getPaymentTypeName(paymentData.type);
+            const paymentTime = new Date().toLocaleString('zh-CN');
+            
+            orderInfo.innerHTML = `
+                <p><strong>订单号：</strong>${paymentData.out_trade_no}</p>
+                <p><strong>支付金额：</strong>¥${paymentData.money}</p>
+                <p><strong>支付方式：</strong>${paymentTypeName}</p>
+                <p><strong>交易号：</strong>${paymentData.trade_no}</p>
+                <p><strong>支付时间：</strong>${paymentTime}</p>
+                <p><strong>支付状态：</strong><span class="status-success">${paymentData.trade_status}</span></p>
+            `;
+            orderInfo.style.display = 'block';
+        }
+
+        // 获取支付方式名称
+        function getPaymentTypeName(type) {
+            const typeMap = {
+                'alipay': '支付宝',
+                'wechat': '微信支付',
+                'qq': 'QQ钱包'
+            };
+            return typeMap[type] || type;
+        }
+
+        // 开始进度条动画
+        function startProgress() {
+            const interval = setInterval(() => {
+                if (verificationStatus === 'loading') {
+                    progress += 5;
+                    if (progress >= 95) {
+                        progress = 95; // 保持在95%直到验证完成
+                        clearInterval(interval);
+                    }
+                } else {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                
+                document.getElementById('loadingProgress').style.width = progress + '%';
+            }, 100);
+        }
+
+        // 验证支付
+        async function verifyPayment() {
+            if (!paymentData || !paymentData.out_trade_no) {
+                showError('缺少支付数据', '无法进行支付验证');
+                return;
+            }
+
+            try {
+                console.log('开始验证支付状态...');
+                
+                const response = await fetch('/api/payment/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+                
+                const data = await response.json();
+                console.log('支付验证响应:', data);
+                
+                if (data.status === 0) {
+                    // 验证成功
+                    showSuccess();
+                } else {
+                    throw new Error(data.message || '支付验证失败');
+                }
+                
+            } catch (error) {
+                console.error('支付验证失败:', error);
+                showError('支付验证失败', error.message || '网络请求失败');
+            }
+        }
+
+        // 显示成功状态
+        function showSuccess() {
+            verificationStatus = 'success';
+            progress = 100;
+            
+            document.getElementById('statusIcon').className = 'status-icon success-icon';
+            document.getElementById('statusIcon').textContent = '✅';
+            document.getElementById('statusTitle').textContent = '支付成功！';
+            
+            document.getElementById('verificationInfo').style.display = 'none';
+            
+            const successMessage = document.getElementById('successMessage');
+            document.getElementById('activationTime').textContent = 
+                'VIP权限已于 ' + new Date().toLocaleString('zh-CN') + ' 激活';
+            successMessage.style.display = 'block';
+            
+            // 显示调试信息
+            showDebugInfo();
+            
+            // 显示成功后的操作按钮
+            showSuccessActions();
+        }
+
+        // 显示错误状态
+        function showError(message, details) {
+            verificationStatus = 'error';
+            progress = 100;
+            
+            document.getElementById('statusIcon').className = 'status-icon error-icon';
+            document.getElementById('statusIcon').textContent = '❌';
+            document.getElementById('statusTitle').textContent = '支付验证失败';
+            
+            document.getElementById('verificationInfo').style.display = 'none';
+            
+            const errorMessage = document.getElementById('errorMessage');
+            if (details) {
+                document.getElementById('errorDetails').textContent = '详细信息: ' + details;
+            }
+            errorMessage.style.display = 'block';
+            
+            document.getElementById('retryBtn').style.display = 'inline-block';
+            
+            // 显示调试信息
+            showDebugInfo();
+        }
+
+        // 显示调试信息
+        function showDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugData = document.getElementById('debugData');
+            
+            debugData.textContent = JSON.stringify({
+                paymentData: paymentData,
+                verificationStatus: verificationStatus,
+                url: window.location.href,
+                timestamp: new Date().toISOString()
+            }, null, 2);
+            
+            debugInfo.style.display = 'block';
+        }
+
+        // 重试支付
+        function retryPayment() {
+            window.location.href = 'https://tiantianai.co/idea/#/payment';
+        }
+
+        // 显示成功后的操作按钮
+        function showSuccessActions() {
+            const actionsDiv = document.getElementById('successActions');
+            actionsDiv.innerHTML = `
+                <div class="actions">
+                    <a href="https://tiantianai.co/idea/#/payment" class="btn btn-primary">返回支付页面查看状态</a>
+                    <a href="https://tiantianai.co/idea/#/login" class="btn btn-secondary">重新登录</a>
+                </div>
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <h4 style="color: #1976d2; margin-bottom: 10px;">🎉 恭喜您!</h4>
+                    <p style="color: #424242; margin-bottom: 10px;">您的VIP权限已成功激活！</p>
+                    <p style="color: #666; font-size: 14px;">
+                        点击"返回支付页面查看状态"按钮，刷新页面即可看到最新的VIP状态。
+                    </p>
+                </div>
+            `;
+            actionsDiv.style.display = 'block';
+        }
+
+        // 页面加载日志
+        console.log('静态支付成功页面已加载');
+        console.log('当前URL:', window.location.href);
+    </script>
+</body>
+</html> 
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付成功 - 天天AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .success-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+        }
+        
+        .status-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .success-icon { color: #28a745; animation: bounce 1s infinite; }
+        .loading-icon { color: #007bff; animation: pulse 1.5s infinite; }
+        .error-icon { color: #dc3545; }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .order-info p {
+            margin: 8px 0;
+            color: #495057;
+            font-size: 16px;
+        }
+        
+        .order-info strong {
+            color: #2c3e50;
+            min-width: 100px;
+            display: inline-block;
+        }
+        
+        .status-success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .verification-info {
+            margin-bottom: 30px;
+        }
+        
+        .verification-info p {
+            color: #6c757d;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .loading-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #20c997);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .vip-message {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .activation-time {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .error-message ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 120px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .debug-info {
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .debug-info details {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .debug-info summary {
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        .debug-info pre {
+            background: #fff;
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            overflow: auto;
+            margin: 5px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div id="statusIcon" class="status-icon loading-icon">⚡</div>
+        <h1 id="statusTitle">正在验证支付...</h1>
+        
+        <div id="orderInfo" class="order-info" style="display: none;">
+            <!-- 订单信息将通过JavaScript填充 -->
+        </div>
+        
+        <div id="verificationInfo" class="verification-info">
+            <p>正在验证支付状态并激活VIP权限...</p>
+            <div class="loading-bar">
+                <div id="loadingProgress" class="loading-progress" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div id="successMessage" class="success-message" style="display: none;">
+            <p class="vip-message">🎉 恭喜！您的VIP权限已成功激活</p>
+            <p class="activation-time" id="activationTime"></p>
+        </div>
+        
+        <div id="successActions" style="display: none;"></div>
+        
+        <div id="errorMessage" class="error-message" style="display: none;">
+            <p>支付验证失败，可能的原因：</p>
+            <ul>
+                <li>签名验证失败</li>
+                <li>订单状态异常</li>
+                <li>网络连接问题</li>
+            </ul>
+            <p>请联系客服处理：support@tiantianai.co</p>
+            <div id="errorDetails" style="margin-top: 10px; font-size: 12px; color: #888;"></div>
+        </div>
+        
+        <div class="actions">
+            <button id="retryBtn" class="btn btn-primary" onclick="retryPayment()" style="display: none;">重新支付</button>
+            <a href="http://47.242.187.2:8080" class="btn btn-primary">返回首页</a>
+            <a href="http://47.242.187.2:8080/#/login" class="btn btn-secondary">重新登录</a>
+        </div>
+        
+        <div class="debug-info" id="debugInfo" style="display: none;">
+            <details>
+                <summary>调试信息（点击展开）</summary>
+                <pre id="debugData"></pre>
+            </details>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let paymentData = null;
+        let verificationStatus = 'loading';
+        let progress = 0;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('支付成功页面加载完成');
+            initPaymentInfo();
+            startProgress();
+            verifyPayment();
+        });
+
+        // 解析URL参数
+        function initPaymentInfo() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                paymentData = {
+                    pid: urlParams.get('pid'),
+                    trade_no: urlParams.get('trade_no'),
+                    out_trade_no: urlParams.get('out_trade_no'),
+                    type: urlParams.get('type'),
+                    name: decodeURIComponent(urlParams.get('name') || ''),
+                    money: urlParams.get('money'),
+                    trade_status: urlParams.get('trade_status'),
+                    sign: urlParams.get('sign'),
+                    sign_type: urlParams.get('sign_type')
+                };
+                
+                console.log('解析的支付数据:', paymentData);
+                
+                if (paymentData.out_trade_no) {
+                    displayOrderInfo();
+                } else {
+                    console.error('未找到支付回调参数');
+                    showError('未找到支付回调参数', '请确认从正确的支付链接访问此页面');
+                }
+            } catch (error) {
+                console.error('参数解析失败:', error);
+                showError('参数解析失败', error.message);
+            }
+        }
+
+        // 显示订单信息
+        function displayOrderInfo() {
+            const orderInfo = document.getElementById('orderInfo');
+            const paymentTypeName = getPaymentTypeName(paymentData.type);
+            const paymentTime = new Date().toLocaleString('zh-CN');
+            
+            orderInfo.innerHTML = `
+                <p><strong>订单号：</strong>${paymentData.out_trade_no}</p>
+                <p><strong>支付金额：</strong>¥${paymentData.money}</p>
+                <p><strong>支付方式：</strong>${paymentTypeName}</p>
+                <p><strong>交易号：</strong>${paymentData.trade_no}</p>
+                <p><strong>支付时间：</strong>${paymentTime}</p>
+                <p><strong>支付状态：</strong><span class="status-success">${paymentData.trade_status}</span></p>
+            `;
+            orderInfo.style.display = 'block';
+        }
+
+        // 获取支付方式名称
+        function getPaymentTypeName(type) {
+            const typeMap = {
+                'alipay': '支付宝',
+                'wechat': '微信支付',
+                'qq': 'QQ钱包'
+            };
+            return typeMap[type] || type;
+        }
+
+        // 开始进度条动画
+        function startProgress() {
+            const interval = setInterval(() => {
+                if (verificationStatus === 'loading') {
+                    progress += 5;
+                    if (progress >= 95) {
+                        progress = 95; // 保持在95%直到验证完成
+                        clearInterval(interval);
+                    }
+                } else {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                
+                document.getElementById('loadingProgress').style.width = progress + '%';
+            }, 100);
+        }
+
+        // 验证支付
+        async function verifyPayment() {
+            if (!paymentData || !paymentData.out_trade_no) {
+                showError('缺少支付数据', '无法进行支付验证');
+                return;
+            }
+
+            try {
+                console.log('开始验证支付状态...');
+                
+                const response = await fetch('/api/payment/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+                
+                const data = await response.json();
+                console.log('支付验证响应:', data);
+                
+                if (data.status === 0) {
+                    // 验证成功
+                    showSuccess();
+                } else {
+                    throw new Error(data.message || '支付验证失败');
+                }
+                
+            } catch (error) {
+                console.error('支付验证失败:', error);
+                showError('支付验证失败', error.message || '网络请求失败');
+            }
+        }
+
+        // 显示成功状态
+        function showSuccess() {
+            verificationStatus = 'success';
+            progress = 100;
+            
+            document.getElementById('statusIcon').className = 'status-icon success-icon';
+            document.getElementById('statusIcon').textContent = '✅';
+            document.getElementById('statusTitle').textContent = '支付成功！';
+            
+            document.getElementById('verificationInfo').style.display = 'none';
+            
+            const successMessage = document.getElementById('successMessage');
+            document.getElementById('activationTime').textContent = 
+                'VIP权限已于 ' + new Date().toLocaleString('zh-CN') + ' 激活';
+            successMessage.style.display = 'block';
+            
+            // 显示调试信息
+            showDebugInfo();
+            
+            // 显示成功后的操作按钮
+            showSuccessActions();
+        }
+
+        // 显示错误状态
+        function showError(message, details) {
+            verificationStatus = 'error';
+            progress = 100;
+            
+            document.getElementById('statusIcon').className = 'status-icon error-icon';
+            document.getElementById('statusIcon').textContent = '❌';
+            document.getElementById('statusTitle').textContent = '支付验证失败';
+            
+            document.getElementById('verificationInfo').style.display = 'none';
+            
+            const errorMessage = document.getElementById('errorMessage');
+            if (details) {
+                document.getElementById('errorDetails').textContent = '详细信息: ' + details;
+            }
+            errorMessage.style.display = 'block';
+            
+            document.getElementById('retryBtn').style.display = 'inline-block';
+            
+            // 显示调试信息
+            showDebugInfo();
+        }
+
+        // 显示调试信息
+        function showDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugData = document.getElementById('debugData');
+            
+            debugData.textContent = JSON.stringify({
+                paymentData: paymentData,
+                verificationStatus: verificationStatus,
+                url: window.location.href,
+                timestamp: new Date().toISOString()
+            }, null, 2);
+            
+            debugInfo.style.display = 'block';
+        }
+
+        // 重试支付
+        function retryPayment() {
+            window.location.href = 'https://tiantianai.co/idea/#/payment';
+        }
+
+        // 显示成功后的操作按钮
+        function showSuccessActions() {
+            const actionsDiv = document.getElementById('successActions');
+            actionsDiv.innerHTML = `
+                <div class="actions">
+                    <a href="https://tiantianai.co/idea/#/payment" class="btn btn-primary">返回支付页面查看状态</a>
+                    <a href="https://tiantianai.co/idea/#/login" class="btn btn-secondary">重新登录</a>
+                </div>
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <h4 style="color: #1976d2; margin-bottom: 10px;">🎉 恭喜您!</h4>
+                    <p style="color: #424242; margin-bottom: 10px;">您的VIP权限已成功激活！</p>
+                    <p style="color: #666; font-size: 14px;">
+                        点击"返回支付页面查看状态"按钮，刷新页面即可看到最新的VIP状态。
+                    </p>
+                </div>
+            `;
+            actionsDiv.style.display = 'block';
+        }
+
+        // 页面加载日志
+        console.log('静态支付成功页面已加载');
+        console.log('当前URL:', window.location.href);
+    </script>
+</body>
+</html> 
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付成功 - 天天AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .success-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+        }
+        
+        .status-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .success-icon { color: #28a745; animation: bounce 1s infinite; }
+        .loading-icon { color: #007bff; animation: pulse 1.5s infinite; }
+        .error-icon { color: #dc3545; }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .order-info p {
+            margin: 8px 0;
+            color: #495057;
+            font-size: 16px;
+        }
+        
+        .order-info strong {
+            color: #2c3e50;
+            min-width: 100px;
+            display: inline-block;
+        }
+        
+        .status-success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .verification-info {
+            margin-bottom: 30px;
+        }
+        
+        .verification-info p {
+            color: #6c757d;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .loading-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #20c997);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .vip-message {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .activation-time {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .error-message ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 120px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .debug-info {
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .debug-info details {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .debug-info summary {
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        .debug-info pre {
+            background: #fff;
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            overflow: auto;
+            margin: 5px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div id="statusIcon" class="status-icon loading-icon">⚡</div>
+        <h1 id="statusTitle">正在验证支付...</h1>
+        
+        <div id="orderInfo" class="order-info" style="display: none;">
+            <!-- 订单信息将通过JavaScript填充 -->
+        </div>
+        
+        <div id="verificationInfo" class="verification-info">
+            <p>正在验证支付状态并激活VIP权限...</p>
+            <div class="loading-bar">
+                <div id="loadingProgress" class="loading-progress" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div id="successMessage" class="success-message" style="display: none;">
+            <p class="vip-message">🎉 恭喜！您的VIP权限已成功激活</p>
+            <p class="activation-time" id="activationTime"></p>
+        </div>
+        
+        <div id="successActions" style="display: none;"></div>
+        
+        <div id="errorMessage" class="error-message" style="display: none;">
+            <p>支付验证失败，可能的原因：</p>
+            <ul>
+                <li>签名验证失败</li>
+                <li>订单状态异常</li>
+                <li>网络连接问题</li>
+            </ul>
+            <p>请联系客服处理：support@tiantianai.co</p>
+            <div id="errorDetails" style="margin-top: 10px; font-size: 12px; color: #888;"></div>
+        </div>
+        
+        <div class="actions">
+            <button id="retryBtn" class="btn btn-primary" onclick="retryPayment()" style="display: none;">重新支付</button>
+            <a href="http://47.242.187.2:8080" class="btn btn-primary">返回首页</a>
+            <a href="http://47.242.187.2:8080/#/login" class="btn btn-secondary">重新登录</a>
+        </div>
+        
+        <div class="debug-info" id="debugInfo" style="display: none;">
+            <details>
+                <summary>调试信息（点击展开）</summary>
+                <pre id="debugData"></pre>
+            </details>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let paymentData = null;
+        let verificationStatus = 'loading';
+        let progress = 0;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('支付成功页面加载完成');
+            initPaymentInfo();
+            startProgress();
+            verifyPayment();
+        });
+
+        // 解析URL参数
+        function initPaymentInfo() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                paymentData = {
+                    pid: urlParams.get('pid'),
+                    trade_no: urlParams.get('trade_no'),
+                    out_trade_no: urlParams.get('out_trade_no'),
+                    type: urlParams.get('type'),
+                    name: decodeURIComponent(urlParams.get('name') || ''),
+                    money: urlParams.get('money'),
+                    trade_status: urlParams.get('trade_status'),
+                    sign: urlParams.get('sign'),
+                    sign_type: urlParams.get('sign_type')
+                };
+                
+                console.log('解析的支付数据:', paymentData);
+                
+                if (paymentData.out_trade_no) {
+                    displayOrderInfo();
+                } else {
+                    console.error('未找到支付回调参数');
+                    showError('未找到支付回调参数', '请确认从正确的支付链接访问此页面');
+                }
+            } catch (error) {
+                console.error('参数解析失败:', error);
+                showError('参数解析失败', error.message);
+            }
+        }
+
+        // 显示订单信息
+        function displayOrderInfo() {
+            const orderInfo = document.getElementById('orderInfo');
+            const paymentTypeName = getPaymentTypeName(paymentData.type);
+            const paymentTime = new Date().toLocaleString('zh-CN');
+            
+            orderInfo.innerHTML = `
+                <p><strong>订单号：</strong>${paymentData.out_trade_no}</p>
+                <p><strong>支付金额：</strong>¥${paymentData.money}</p>
+                <p><strong>支付方式：</strong>${paymentTypeName}</p>
+                <p><strong>交易号：</strong>${paymentData.trade_no}</p>
+                <p><strong>支付时间：</strong>${paymentTime}</p>
+                <p><strong>支付状态：</strong><span class="status-success">${paymentData.trade_status}</span></p>
+            `;
+            orderInfo.style.display = 'block';
+        }
+
+        // 获取支付方式名称
+        function getPaymentTypeName(type) {
+            const typeMap = {
+                'alipay': '支付宝',
+                'wechat': '微信支付',
+                'qq': 'QQ钱包'
+            };
+            return typeMap[type] || type;
+        }
+
+        // 开始进度条动画
+        function startProgress() {
+            const interval = setInterval(() => {
+                if (verificationStatus === 'loading') {
+                    progress += 5;
+                    if (progress >= 95) {
+                        progress = 95; // 保持在95%直到验证完成
+                        clearInterval(interval);
+                    }
+                } else {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                
+                document.getElementById('loadingProgress').style.width = progress + '%';
+            }, 100);
+        }
+
+        // 验证支付
+        async function verifyPayment() {
+            if (!paymentData || !paymentData.out_trade_no) {
+                showError('缺少支付数据', '无法进行支付验证');
+                return;
+            }
+
+            try {
+                console.log('开始验证支付状态...');
+                
+                const response = await fetch('/api/payment/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+                
+                const data = await response.json();
+                console.log('支付验证响应:', data);
+                
+                if (data.status === 0) {
+                    // 验证成功
+                    showSuccess();
+                } else {
+                    throw new Error(data.message || '支付验证失败');
+                }
+                
+            } catch (error) {
+                console.error('支付验证失败:', error);
+                showError('支付验证失败', error.message || '网络请求失败');
+            }
+        }
+
+        // 显示成功状态
+        function showSuccess() {
+            verificationStatus = 'success';
+            progress = 100;
+            
+            document.getElementById('statusIcon').className = 'status-icon success-icon';
+            document.getElementById('statusIcon').textContent = '✅';
+            document.getElementById('statusTitle').textContent = '支付成功！';
+            
+            document.getElementById('verificationInfo').style.display = 'none';
+            
+            const successMessage = document.getElementById('successMessage');
+            document.getElementById('activationTime').textContent = 
+                'VIP权限已于 ' + new Date().toLocaleString('zh-CN') + ' 激活';
+            successMessage.style.display = 'block';
+            
+            // 显示调试信息
+            showDebugInfo();
+            
+            // 显示成功后的操作按钮
+            showSuccessActions();
+        }
+
+        // 显示错误状态
+        function showError(message, details) {
+            verificationStatus = 'error';
+            progress = 100;
+            
+            document.getElementById('statusIcon').className = 'status-icon error-icon';
+            document.getElementById('statusIcon').textContent = '❌';
+            document.getElementById('statusTitle').textContent = '支付验证失败';
+            
+            document.getElementById('verificationInfo').style.display = 'none';
+            
+            const errorMessage = document.getElementById('errorMessage');
+            if (details) {
+                document.getElementById('errorDetails').textContent = '详细信息: ' + details;
+            }
+            errorMessage.style.display = 'block';
+            
+            document.getElementById('retryBtn').style.display = 'inline-block';
+            
+            // 显示调试信息
+            showDebugInfo();
+        }
+
+        // 显示调试信息
+        function showDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugData = document.getElementById('debugData');
+            
+            debugData.textContent = JSON.stringify({
+                paymentData: paymentData,
+                verificationStatus: verificationStatus,
+                url: window.location.href,
+                timestamp: new Date().toISOString()
+            }, null, 2);
+            
+            debugInfo.style.display = 'block';
+        }
+
+        // 重试支付
+        function retryPayment() {
+            window.location.href = 'https://tiantianai.co/idea/#/payment';
+        }
+
+        // 显示成功后的操作按钮
+        function showSuccessActions() {
+            const actionsDiv = document.getElementById('successActions');
+            actionsDiv.innerHTML = `
+                <div class="actions">
+                    <a href="https://tiantianai.co/idea/#/payment" class="btn btn-primary">返回支付页面查看状态</a>
+                    <a href="https://tiantianai.co/idea/#/login" class="btn btn-secondary">重新登录</a>
+                </div>
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <h4 style="color: #1976d2; margin-bottom: 10px;">🎉 恭喜您!</h4>
+                    <p style="color: #424242; margin-bottom: 10px;">您的VIP权限已成功激活！</p>
+                    <p style="color: #666; font-size: 14px;">
+                        点击"返回支付页面查看状态"按钮，刷新页面即可看到最新的VIP状态。
+                    </p>
+                </div>
+            `;
+            actionsDiv.style.display = 'block';
+        }
+
+        // 页面加载日志
+        console.log('静态支付成功页面已加载');
+        console.log('当前URL:', window.location.href);
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 

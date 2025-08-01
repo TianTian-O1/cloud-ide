@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .pay-link {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .pay-link:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>支付功能测试</h1>
+        
+        <div class="step">
+            <h2>步骤1：登录获取Token</h2>
+            <button class="btn" onclick="login()">登录</button>
+            <div id="login-result"></div>
+        </div>
+        
+        <div class="step">
+            <h2>步骤2：创建支付订单</h2>
+            <button class="btn" onclick="createPayment()">创建支付订单</button>
+            <div id="payment-result"></div>
+        </div>
+        
+        <div class="step">
+            <h2>步骤3：测试支付链接</h2>
+            <div id="payment-link"></div>
+        </div>
+        
+        <div class="step">
+            <h2>调试信息</h2>
+            <div id="debug-info"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = '';
+        let paymentData = null;
+        
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${content}</div>`;
+        }
+        
+        function showDebug(content) {
+            const debugElement = document.getElementById('debug-info');
+            debugElement.innerHTML = `<div class="result info"><pre>${content}</pre></div>`;
+        }
+        
+        async function login() {
+            try {
+                showResult('login-result', '正在登录...', 'info');
+                
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'testlogin',
+                        password: '123456'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (data.status === 0) {
+                    token = data.data.token;
+                    showResult('login-result', `登录成功！Token: ${token.substring(0, 20)}...`, 'success');
+                } else {
+                    showResult('login-result', `登录失败：${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                showResult('login-result', `登录异常：${error.message}`, 'error');
+            }
+        }
+        
+        async function createPayment() {
+            if (!token) {
+                showResult('payment-result', '请先登录获取Token', 'error');
+                return;
+            }
+            
+            try {
+                showResult('payment-result', '正在创建支付订单...', 'info');
+                
+                const response = await fetch('/api/payment/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        product_type: 'day',
+                        payment_method: 'alipay'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Payment response:', data);
+                paymentData = data;
+                
+                showDebug(JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    showResult('payment-result', '支付订单创建成功！', 'success');
+                    
+                    // 检查返回的数据结构
+                    if (data.data && data.data.payUrl) {
+                        const payUrl = data.data.payUrl;
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result success">
+                                <h3>支付链接已生成：</h3>
+                                <a href="${payUrl}" target="_blank" class="pay-link">点击前往支付页面</a>
+                                <p>订单号：${data.data.order ? data.data.order.order_no : 'N/A'}</p>
+                                <p>金额：¥${data.data.order ? data.data.order.amount : 'N/A'}</p>
+                            </div>
+                        `;
+                    } else if (data.data && data.data.qrCode) {
+                        const qrCode = data.data.qrCode;
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result success">
+                                <h3>二维码支付链接：</h3>
+                                <a href="${qrCode}" target="_blank" class="pay-link">点击打开二维码页面</a>
+                                <p>订单号：${data.data.order ? data.data.order.order_no : 'N/A'}</p>
+                                <p>金额：¥${data.data.order ? data.data.order.amount : 'N/A'}</p>
+                            </div>
+                        `;
+                    } else {
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result error">
+                                <h3>❌ 支付链接缺失</h3>
+                                <p>后端返回的数据中没有找到 payUrl 或 qrCode 字段</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    showResult('payment-result', `创建订单失败：${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Payment error:', error);
+                showResult('payment-result', `创建订单异常：${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载时显示说明
+        window.onload = function() {
+            showDebug('页面加载完成，请按步骤测试支付功能');
+        };
+    </script>
+</body>
+</html> 
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .pay-link {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .pay-link:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>支付功能测试</h1>
+        
+        <div class="step">
+            <h2>步骤1：登录获取Token</h2>
+            <button class="btn" onclick="login()">登录</button>
+            <div id="login-result"></div>
+        </div>
+        
+        <div class="step">
+            <h2>步骤2：创建支付订单</h2>
+            <button class="btn" onclick="createPayment()">创建支付订单</button>
+            <div id="payment-result"></div>
+        </div>
+        
+        <div class="step">
+            <h2>步骤3：测试支付链接</h2>
+            <div id="payment-link"></div>
+        </div>
+        
+        <div class="step">
+            <h2>调试信息</h2>
+            <div id="debug-info"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = '';
+        let paymentData = null;
+        
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${content}</div>`;
+        }
+        
+        function showDebug(content) {
+            const debugElement = document.getElementById('debug-info');
+            debugElement.innerHTML = `<div class="result info"><pre>${content}</pre></div>`;
+        }
+        
+        async function login() {
+            try {
+                showResult('login-result', '正在登录...', 'info');
+                
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'testlogin',
+                        password: '123456'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (data.status === 0) {
+                    token = data.data.token;
+                    showResult('login-result', `登录成功！Token: ${token.substring(0, 20)}...`, 'success');
+                } else {
+                    showResult('login-result', `登录失败：${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                showResult('login-result', `登录异常：${error.message}`, 'error');
+            }
+        }
+        
+        async function createPayment() {
+            if (!token) {
+                showResult('payment-result', '请先登录获取Token', 'error');
+                return;
+            }
+            
+            try {
+                showResult('payment-result', '正在创建支付订单...', 'info');
+                
+                const response = await fetch('/api/payment/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        product_type: 'day',
+                        payment_method: 'alipay'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Payment response:', data);
+                paymentData = data;
+                
+                showDebug(JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    showResult('payment-result', '支付订单创建成功！', 'success');
+                    
+                    // 检查返回的数据结构
+                    if (data.data && data.data.payUrl) {
+                        const payUrl = data.data.payUrl;
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result success">
+                                <h3>支付链接已生成：</h3>
+                                <a href="${payUrl}" target="_blank" class="pay-link">点击前往支付页面</a>
+                                <p>订单号：${data.data.order ? data.data.order.order_no : 'N/A'}</p>
+                                <p>金额：¥${data.data.order ? data.data.order.amount : 'N/A'}</p>
+                            </div>
+                        `;
+                    } else if (data.data && data.data.qrCode) {
+                        const qrCode = data.data.qrCode;
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result success">
+                                <h3>二维码支付链接：</h3>
+                                <a href="${qrCode}" target="_blank" class="pay-link">点击打开二维码页面</a>
+                                <p>订单号：${data.data.order ? data.data.order.order_no : 'N/A'}</p>
+                                <p>金额：¥${data.data.order ? data.data.order.amount : 'N/A'}</p>
+                            </div>
+                        `;
+                    } else {
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result error">
+                                <h3>❌ 支付链接缺失</h3>
+                                <p>后端返回的数据中没有找到 payUrl 或 qrCode 字段</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    showResult('payment-result', `创建订单失败：${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Payment error:', error);
+                showResult('payment-result', `创建订单异常：${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载时显示说明
+        window.onload = function() {
+            showDebug('页面加载完成，请按步骤测试支付功能');
+        };
+    </script>
+</body>
+</html> 
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .pay-link {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .pay-link:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>支付功能测试</h1>
+        
+        <div class="step">
+            <h2>步骤1：登录获取Token</h2>
+            <button class="btn" onclick="login()">登录</button>
+            <div id="login-result"></div>
+        </div>
+        
+        <div class="step">
+            <h2>步骤2：创建支付订单</h2>
+            <button class="btn" onclick="createPayment()">创建支付订单</button>
+            <div id="payment-result"></div>
+        </div>
+        
+        <div class="step">
+            <h2>步骤3：测试支付链接</h2>
+            <div id="payment-link"></div>
+        </div>
+        
+        <div class="step">
+            <h2>调试信息</h2>
+            <div id="debug-info"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = '';
+        let paymentData = null;
+        
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${content}</div>`;
+        }
+        
+        function showDebug(content) {
+            const debugElement = document.getElementById('debug-info');
+            debugElement.innerHTML = `<div class="result info"><pre>${content}</pre></div>`;
+        }
+        
+        async function login() {
+            try {
+                showResult('login-result', '正在登录...', 'info');
+                
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'testlogin',
+                        password: '123456'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (data.status === 0) {
+                    token = data.data.token;
+                    showResult('login-result', `登录成功！Token: ${token.substring(0, 20)}...`, 'success');
+                } else {
+                    showResult('login-result', `登录失败：${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                showResult('login-result', `登录异常：${error.message}`, 'error');
+            }
+        }
+        
+        async function createPayment() {
+            if (!token) {
+                showResult('payment-result', '请先登录获取Token', 'error');
+                return;
+            }
+            
+            try {
+                showResult('payment-result', '正在创建支付订单...', 'info');
+                
+                const response = await fetch('/api/payment/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        product_type: 'day',
+                        payment_method: 'alipay'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Payment response:', data);
+                paymentData = data;
+                
+                showDebug(JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    showResult('payment-result', '支付订单创建成功！', 'success');
+                    
+                    // 检查返回的数据结构
+                    if (data.data && data.data.payUrl) {
+                        const payUrl = data.data.payUrl;
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result success">
+                                <h3>支付链接已生成：</h3>
+                                <a href="${payUrl}" target="_blank" class="pay-link">点击前往支付页面</a>
+                                <p>订单号：${data.data.order ? data.data.order.order_no : 'N/A'}</p>
+                                <p>金额：¥${data.data.order ? data.data.order.amount : 'N/A'}</p>
+                            </div>
+                        `;
+                    } else if (data.data && data.data.qrCode) {
+                        const qrCode = data.data.qrCode;
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result success">
+                                <h3>二维码支付链接：</h3>
+                                <a href="${qrCode}" target="_blank" class="pay-link">点击打开二维码页面</a>
+                                <p>订单号：${data.data.order ? data.data.order.order_no : 'N/A'}</p>
+                                <p>金额：¥${data.data.order ? data.data.order.amount : 'N/A'}</p>
+                            </div>
+                        `;
+                    } else {
+                        document.getElementById('payment-link').innerHTML = `
+                            <div class="result error">
+                                <h3>❌ 支付链接缺失</h3>
+                                <p>后端返回的数据中没有找到 payUrl 或 qrCode 字段</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    showResult('payment-result', `创建订单失败：${data.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Payment error:', error);
+                showResult('payment-result', `创建订单异常：${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载时显示说明
+        window.onload = function() {
+            showDebug('页面加载完成，请按步骤测试支付功能');
+        };
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 

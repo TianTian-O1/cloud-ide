@@ -1,0 +1,30 @@
+# 该镜像用于编译web程序
+FROM golang:1.21 AS builder
+
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOPROXY="https://goproxy.cn,direct" \
+    GO111MODULE=on
+
+WORKDIR /build
+
+COPY . .
+
+RUN go mod download
+RUN go build -ldflags="-s -w" -o /app/server ./cmd/webserver/main.go
+
+
+# 该镜像用于运行web程序
+FROM alpine
+
+ENV TZ=Asia/Shanghai
+
+WORKDIR /app
+
+COPY --from=builder /app/server /app/
+COPY --from=builder /build/config/webserver.yaml /app/config/
+COPY --from=builder /build/cmd/webserver/static /app/static/
+
+EXPOSE 8080
+
+ENTRYPOINT ["./server"]

@@ -1,0 +1,44 @@
+{
+  "id": "",
+  "name": "",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "1582435",
+      "name": "icon_停止",
+      "font_class": "icon_tingzhi",
+      "unicode": "e64c",
+      "unicode_decimal": 58956
+    },
+    {
+      "icon_id": "3538379",
+      "name": "删除",
+      "font_class": "shanchu",
+      "unicode": "e718",
+      "unicode_decimal": 59160
+    },
+    {
+      "icon_id": "4933369",
+      "name": "启动",
+      "font_class": "qidong",
+      "unicode": "e746",
+      "unicode_decimal": 59206
+    },
+    {
+      "icon_id": "10031749",
+      "name": "编辑",
+      "font_class": "bianji",
+      "unicode": "e624",
+      "unicode_decimal": 58916
+    },
+    {
+      "icon_id": "32474590",
+      "name": "进入",
+      "font_class": "jinru",
+      "unicode": "e6c7",
+      "unicode_decimal": 59079
+    }
+  ]
+}

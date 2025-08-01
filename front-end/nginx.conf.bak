@@ -1,0 +1,60 @@
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log notice;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    server {
+        listen       80;
+        listen  [::]:80;
+        server_name  localhost;
+
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+
+        # Vue.js 路由配置
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API 代理到后端服务 - 使用集群内服务名
+        location /api/ {
+            proxy_pass http://cloud-ide-web-svc.cloud-ide.svc.cluster.local:8088/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # 认证接口代理 - 使用集群内服务名
+        location /auth/ {
+            proxy_pass http://cloud-ide-web-svc.cloud-ide.svc.cluster.local:8088/auth/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+} 

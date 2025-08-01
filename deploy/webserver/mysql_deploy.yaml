@@ -1,0 +1,79 @@
+# pvc
+---
+# 如果使用动态卷制备，则只需创建PVC即可，否则需要自己创建PV
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloud-ide-mysql-pvc
+  namespace: cloud-ide
+spec:
+  accessModes: # 访客模式
+  - ReadWriteOnce
+  resources: # 请求空间
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+
+
+# 定义mysql的Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cloud-ide-mysql
+    apps: cloud-ide
+  name: mysql
+  namespace: cloud-ide
+spec:
+  selector:
+    matchLabels:
+      app: cloud-ide-mysql
+  template:
+    metadata:
+      labels:
+        app: cloud-ide-mysql
+    spec:
+      containers:
+      - image: mysql:8.0
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "123456"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-volume
+          mountPath: /var/lib/mysql
+        - name: init-sql
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: mysql-volume
+        # 使用pvc
+        persistentVolumeClaim:
+          claimName: cloud-ide-mysql-pvc
+      - name: init-sql           # 使用mysql初始化文件
+        configMap:
+          name: cloud-ide-mysql-init-sql
+
+
+
+
+#定义mysql的Service
+---
+# 创建NodePort类型的Server以便执行Sql文件
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cloud-ide-mysql-svc
+  name: cloud-ide-mysql-svc
+  namespace: cloud-ide
+spec:
+  selector:
+    app: cloud-ide-mysql
+  type: ClusterIP
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306

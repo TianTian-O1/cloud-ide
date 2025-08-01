@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cloud-ide-gateway
+    apps: cloud-ide
+  name: cloud-ide-gateway
+  namespace: cloud-ide
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloud-ide-gateway
+  template:
+    metadata:
+      labels:
+        app: cloud-ide-gateway
+    spec:
+      containers:
+        - image: cloud-ide-gateway:v1.5-oauth
+          imagePullPolicy: IfNotPresent
+          args:
+            - -workers                 # 指定nginx的worker数量
+            - "2"
+            - -conns-per-worker        # 指定每个worker的最大连接数
+            - "2048"
+            - -shared-dict-size        # 共享内存大小
+            - "16m"
+            - -nginx-conf-path         # 配置文件路径
+            - "/usr/local/openresty/nginx/conf"
+            - -endpoint-token          # 服务发现的token
+            - "XnRbVnoUZa0rT9xKAwHX0Zof3H7VpfCe"
+            - -debug                   # 开启debug接口
+            - "disabled"
+            - -server-crt              # https证书
+            - "/etc/openresty/cert/tls.crt"
+            - -server-key              # https key
+            - "/etc/openresty/cert/tls.key"
+            - -web-service-name        # 指定web服务名称
+            - "cloud-ide-web-svc.cloud-ide.svc.cluster.local"
+            - -web-port               # 指定web服务端口
+            - "8088"
+          name: cloud-ide-gateway
+          resources:
+            requests:
+              cpu: "0.1"
+              memory: "128Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          volumeMounts:
+            - mountPath: "/etc/openresty/cert"
+              name: secret
+              readOnly: true
+      volumes:
+        - name: secret
+          secret:
+            secretName: cloud-ide-gateway-secret
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cloud-ide-gateway-svc
+    apps: cloud-ide
+  name: cloud-ide-gateway-svc
+  namespace: cloud-ide
+spec:
+  selector:
+    app: cloud-ide-gateway
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 443
+      name: https
+      nodePort: 30443
+  type: NodePort
+

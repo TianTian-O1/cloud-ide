@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付功能测试 V2 - 二维码生成</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1d23;
+            color: #fff;
+        }
+        .container {
+            background: #2d3139;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4bc4a5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3a9d85;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .qrcode-container {
+            text-align: center;
+            padding: 20px;
+            background: #1a1d23;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .qrcode-display {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: inline-block;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .success {
+            color: #4bc4a5;
+        }
+        .debug {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .payment-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .pay-link {
+            background: linear-gradient(135deg, #1677ff 0%, #69c0ff 100%);
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .pay-link:hover {
+            background: linear-gradient(135deg, #0958d9 0%, #40a9ff 100%);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 支付功能测试工具 V2 - 二维码生成版</h1>
+    
+    <div class="container">
+        <h2>1. 登录测试</h2>
+        <input type="text" id="username" placeholder="用户名" value="testlogin">
+        <input type="password" id="password" placeholder="密码" value="123456">
+        <button onclick="testLogin()">登录</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>2. 支付API测试</h2>
+        <select id="productType">
+            <option value="day">日卡 (¥9.90)</option>
+            <option value="week">周卡</option>
+            <option value="month">月卡</option>
+        </select>
+        <select id="paymentMethod">
+            <option value="alipay">支付宝</option>
+            <option value="wechat">微信支付</option>
+            <option value="qq">QQ钱包</option>
+        </select>
+        <button onclick="testPayment()">创建支付订单</button>
+        <div id="paymentResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. 支付二维码显示</h2>
+        <div id="qrcodeContainer"></div>
+    </div>
+
+    <div class="container">
+        <h2>4. 调试信息</h2>
+        <div id="debugInfo" class="debug"></div>
+    </div>
+
+    <script>
+        let currentToken = '';
+        
+        function log(message, type = 'info') {
+            const debugDiv = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#4bc4a5' : '#fff';
+            debugDiv.innerHTML += '<span style="color: ' + color + '">[' + timestamp + '] ' + message + '</span>\n';
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function generateQRCode(text, containerId) {
+            try {
+                const qr = new QRious({
+                    element: document.getElementById(containerId),
+                    value: text,
+                    size: 200,
+                    level: 'M'
+                });
+                log('✅ 二维码生成成功', 'success');
+                return true;
+            } catch (error) {
+                log('❌ 二维码生成失败: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                log('开始登录测试...');
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                log('登录响应: ' + JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    currentToken = data.data.token;
+                    resultDiv.innerHTML = '<div class="success">✅ 登录成功！Token: ' + currentToken.substring(0, 20) + '...</div>';
+                    log('登录成功，Token已保存', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 登录失败: ' + data.message + '</div>';
+                    log('登录失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ 登录请求失败: ' + error.message + '</div>';
+                log('登录请求失败: ' + error.message, 'error');
+            }
+        }
+
+        async function testPayment() {
+            if (!currentToken) {
+                alert('请先登录！');
+                return;
+            }
+
+            const productType = document.getElementById('productType').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const resultDiv = document.getElementById('paymentResult');
+            const qrcodeDiv = document.getElementById('qrcodeContainer');
+            
+            try {
+                log('开始支付API测试...');
+                const response = await fetch('/api/payment/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + currentToken
+                    },
+                    body: JSON.stringify({
+                        product_type: productType,
+                        payment_method: paymentMethod
+                    })
+                });
+                
+                const data = await response.json();
+                log('支付API响应: ' + JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    resultDiv.innerHTML = '<div class="success">✅ 支付订单创建成功！</div>';
+                    log('支付订单创建成功', 'success');
+                    
+                    const order = data.data.order;
+                    const payUrl = data.data.payUrl;
+                    const qrCode = data.data.qrCode;
+                    
+                    let qrcodeHtml = '<h3>📋 订单信息</h3>' +
+                        '<p><strong>订单号:</strong> ' + order.order_no + '</p>' +
+                        '<p><strong>金额:</strong> ¥' + order.amount + '</p>' +
+                        '<p><strong>产品:</strong> ' + order.product_name + '</p>' +
+                        '<hr style="border-color: #4bc4a5; margin: 20px 0;">';
+                    
+                    if (payUrl) {
+                        // ouyun返回payUrl字段 - 直接跳转支付
+                        log('支付跳转链接 (payUrl): ' + payUrl, 'success');
+                        qrcodeHtml += '<h3>💳 直接支付</h3>' +
+                            '<div class="payment-buttons">' +
+                                '<a href="' + payUrl + '" target="_blank" class="pay-link">🚀 前往支付页面</a>' +
+                                '<button onclick="copyToClipboard(\'' + payUrl + '\')">📋 复制支付链接</button>' +
+                            '</div>' +
+                            '<p style="color: #4bc4a5; margin: 10px 0;">点击按钮打开支付页面</p>';
+                        
+                    } else if (qrCode) {
+                        // ouyun返回qrCode字段 - 生成二维码
+                        log('二维码链接 (qrCode): ' + qrCode, 'success');
+                        
+                        const qrId = 'qr-' + Date.now();
+                        qrcodeHtml += '<h3>📱 扫码支付</h3>' +
+                            '<div class="qrcode-display">' +
+                                '<canvas id="' + qrId + '"></canvas>' +
+                            '</div>' +
+                            '<p style="color: #4bc4a5; margin: 10px 0;">请使用手机扫描上方二维码</p>' +
+                            '<div class="payment-buttons">' +
+                                '<a href="' + qrCode + '" target="_blank" class="pay-link">🔗 或点击打开支付页面</a>' +
+                                '<button onclick="copyToClipboard(\'' + qrCode + '\')">📋 复制支付链接</button>' +
+                            '</div>' +
+                            '<details style="margin-top: 20px;">' +
+                                '<summary style="cursor: pointer; color: #aaa;">🔗 支付链接详情</summary>' +
+                                '<p style="word-break: break-all; font-size: 12px; color: #aaa; margin-top: 10px;">' + qrCode + '</p>' +
+                            '</details>';
+                        
+                        qrcodeDiv.innerHTML = qrcodeHtml;
+                        
+                        setTimeout(function() {
+                            generateQRCode(qrCode, qrId);
+                        }, 100);
+                        
+                    } else {
+                        qrcodeHtml += '<div class="error">❌ 未获取到支付链接（payUrl或qrCode都为空）</div>';
+                        qrcodeDiv.innerHTML = qrcodeHtml;
+                    }
+                    
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 支付API失败: ' + data.message + '</div>';
+                    log('支付API失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ 支付请求失败: ' + error.message + '</div>';
+                log('支付请求失败: ' + error.message, 'error');
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    log('✅ 支付链接已复制到剪贴板', 'success');
+                    alert('支付链接已复制到剪贴板！');
+                }).catch(function() {
+                    log('❌ 复制失败', 'error');
+                    alert('复制失败，请手动复制');
+                });
+            } else {
+                log('❌ 浏览器不支持复制功能', 'error');
+                alert('浏览器不支持复制功能，请手动复制');
+            }
+        }
+
+        window.onload = function() {
+            log('测试页面 V2 已加载');
+            log('此版本支持生成真正的二维码图片');
+            log('请先点击"登录"按钮获取Token，然后测试支付功能');
+        };
+    </script>
+</body>
+</html>
+
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付功能测试 V2 - 二维码生成</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1d23;
+            color: #fff;
+        }
+        .container {
+            background: #2d3139;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4bc4a5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3a9d85;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .qrcode-container {
+            text-align: center;
+            padding: 20px;
+            background: #1a1d23;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .qrcode-display {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: inline-block;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .success {
+            color: #4bc4a5;
+        }
+        .debug {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .payment-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .pay-link {
+            background: linear-gradient(135deg, #1677ff 0%, #69c0ff 100%);
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .pay-link:hover {
+            background: linear-gradient(135deg, #0958d9 0%, #40a9ff 100%);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 支付功能测试工具 V2 - 二维码生成版</h1>
+    
+    <div class="container">
+        <h2>1. 登录测试</h2>
+        <input type="text" id="username" placeholder="用户名" value="testlogin">
+        <input type="password" id="password" placeholder="密码" value="123456">
+        <button onclick="testLogin()">登录</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>2. 支付API测试</h2>
+        <select id="productType">
+            <option value="day">日卡 (¥9.90)</option>
+            <option value="week">周卡</option>
+            <option value="month">月卡</option>
+        </select>
+        <select id="paymentMethod">
+            <option value="alipay">支付宝</option>
+            <option value="wechat">微信支付</option>
+            <option value="qq">QQ钱包</option>
+        </select>
+        <button onclick="testPayment()">创建支付订单</button>
+        <div id="paymentResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. 支付二维码显示</h2>
+        <div id="qrcodeContainer"></div>
+    </div>
+
+    <div class="container">
+        <h2>4. 调试信息</h2>
+        <div id="debugInfo" class="debug"></div>
+    </div>
+
+    <script>
+        let currentToken = '';
+        
+        function log(message, type = 'info') {
+            const debugDiv = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#4bc4a5' : '#fff';
+            debugDiv.innerHTML += '<span style="color: ' + color + '">[' + timestamp + '] ' + message + '</span>\n';
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function generateQRCode(text, containerId) {
+            try {
+                const qr = new QRious({
+                    element: document.getElementById(containerId),
+                    value: text,
+                    size: 200,
+                    level: 'M'
+                });
+                log('✅ 二维码生成成功', 'success');
+                return true;
+            } catch (error) {
+                log('❌ 二维码生成失败: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                log('开始登录测试...');
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                log('登录响应: ' + JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    currentToken = data.data.token;
+                    resultDiv.innerHTML = '<div class="success">✅ 登录成功！Token: ' + currentToken.substring(0, 20) + '...</div>';
+                    log('登录成功，Token已保存', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 登录失败: ' + data.message + '</div>';
+                    log('登录失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ 登录请求失败: ' + error.message + '</div>';
+                log('登录请求失败: ' + error.message, 'error');
+            }
+        }
+
+        async function testPayment() {
+            if (!currentToken) {
+                alert('请先登录！');
+                return;
+            }
+
+            const productType = document.getElementById('productType').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const resultDiv = document.getElementById('paymentResult');
+            const qrcodeDiv = document.getElementById('qrcodeContainer');
+            
+            try {
+                log('开始支付API测试...');
+                const response = await fetch('/api/payment/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + currentToken
+                    },
+                    body: JSON.stringify({
+                        product_type: productType,
+                        payment_method: paymentMethod
+                    })
+                });
+                
+                const data = await response.json();
+                log('支付API响应: ' + JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    resultDiv.innerHTML = '<div class="success">✅ 支付订单创建成功！</div>';
+                    log('支付订单创建成功', 'success');
+                    
+                    const order = data.data.order;
+                    const payUrl = data.data.payUrl;
+                    const qrCode = data.data.qrCode;
+                    
+                    let qrcodeHtml = '<h3>📋 订单信息</h3>' +
+                        '<p><strong>订单号:</strong> ' + order.order_no + '</p>' +
+                        '<p><strong>金额:</strong> ¥' + order.amount + '</p>' +
+                        '<p><strong>产品:</strong> ' + order.product_name + '</p>' +
+                        '<hr style="border-color: #4bc4a5; margin: 20px 0;">';
+                    
+                    if (payUrl) {
+                        // ouyun返回payUrl字段 - 直接跳转支付
+                        log('支付跳转链接 (payUrl): ' + payUrl, 'success');
+                        qrcodeHtml += '<h3>💳 直接支付</h3>' +
+                            '<div class="payment-buttons">' +
+                                '<a href="' + payUrl + '" target="_blank" class="pay-link">🚀 前往支付页面</a>' +
+                                '<button onclick="copyToClipboard(\'' + payUrl + '\')">📋 复制支付链接</button>' +
+                            '</div>' +
+                            '<p style="color: #4bc4a5; margin: 10px 0;">点击按钮打开支付页面</p>';
+                        
+                    } else if (qrCode) {
+                        // ouyun返回qrCode字段 - 生成二维码
+                        log('二维码链接 (qrCode): ' + qrCode, 'success');
+                        
+                        const qrId = 'qr-' + Date.now();
+                        qrcodeHtml += '<h3>📱 扫码支付</h3>' +
+                            '<div class="qrcode-display">' +
+                                '<canvas id="' + qrId + '"></canvas>' +
+                            '</div>' +
+                            '<p style="color: #4bc4a5; margin: 10px 0;">请使用手机扫描上方二维码</p>' +
+                            '<div class="payment-buttons">' +
+                                '<a href="' + qrCode + '" target="_blank" class="pay-link">🔗 或点击打开支付页面</a>' +
+                                '<button onclick="copyToClipboard(\'' + qrCode + '\')">📋 复制支付链接</button>' +
+                            '</div>' +
+                            '<details style="margin-top: 20px;">' +
+                                '<summary style="cursor: pointer; color: #aaa;">🔗 支付链接详情</summary>' +
+                                '<p style="word-break: break-all; font-size: 12px; color: #aaa; margin-top: 10px;">' + qrCode + '</p>' +
+                            '</details>';
+                        
+                        qrcodeDiv.innerHTML = qrcodeHtml;
+                        
+                        setTimeout(function() {
+                            generateQRCode(qrCode, qrId);
+                        }, 100);
+                        
+                    } else {
+                        qrcodeHtml += '<div class="error">❌ 未获取到支付链接（payUrl或qrCode都为空）</div>';
+                        qrcodeDiv.innerHTML = qrcodeHtml;
+                    }
+                    
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 支付API失败: ' + data.message + '</div>';
+                    log('支付API失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ 支付请求失败: ' + error.message + '</div>';
+                log('支付请求失败: ' + error.message, 'error');
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    log('✅ 支付链接已复制到剪贴板', 'success');
+                    alert('支付链接已复制到剪贴板！');
+                }).catch(function() {
+                    log('❌ 复制失败', 'error');
+                    alert('复制失败，请手动复制');
+                });
+            } else {
+                log('❌ 浏览器不支持复制功能', 'error');
+                alert('浏览器不支持复制功能，请手动复制');
+            }
+        }
+
+        window.onload = function() {
+            log('测试页面 V2 已加载');
+            log('此版本支持生成真正的二维码图片');
+            log('请先点击"登录"按钮获取Token，然后测试支付功能');
+        };
+    </script>
+</body>
+</html>
+
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付功能测试 V2 - 二维码生成</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1d23;
+            color: #fff;
+        }
+        .container {
+            background: #2d3139;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4bc4a5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3a9d85;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .qrcode-container {
+            text-align: center;
+            padding: 20px;
+            background: #1a1d23;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .qrcode-display {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: inline-block;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .success {
+            color: #4bc4a5;
+        }
+        .debug {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .payment-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .pay-link {
+            background: linear-gradient(135deg, #1677ff 0%, #69c0ff 100%);
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .pay-link:hover {
+            background: linear-gradient(135deg, #0958d9 0%, #40a9ff 100%);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 支付功能测试工具 V2 - 二维码生成版</h1>
+    
+    <div class="container">
+        <h2>1. 登录测试</h2>
+        <input type="text" id="username" placeholder="用户名" value="testlogin">
+        <input type="password" id="password" placeholder="密码" value="123456">
+        <button onclick="testLogin()">登录</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>2. 支付API测试</h2>
+        <select id="productType">
+            <option value="day">日卡 (¥9.90)</option>
+            <option value="week">周卡</option>
+            <option value="month">月卡</option>
+        </select>
+        <select id="paymentMethod">
+            <option value="alipay">支付宝</option>
+            <option value="wechat">微信支付</option>
+            <option value="qq">QQ钱包</option>
+        </select>
+        <button onclick="testPayment()">创建支付订单</button>
+        <div id="paymentResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. 支付二维码显示</h2>
+        <div id="qrcodeContainer"></div>
+    </div>
+
+    <div class="container">
+        <h2>4. 调试信息</h2>
+        <div id="debugInfo" class="debug"></div>
+    </div>
+
+    <script>
+        let currentToken = '';
+        
+        function log(message, type = 'info') {
+            const debugDiv = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#4bc4a5' : '#fff';
+            debugDiv.innerHTML += '<span style="color: ' + color + '">[' + timestamp + '] ' + message + '</span>\n';
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function generateQRCode(text, containerId) {
+            try {
+                const qr = new QRious({
+                    element: document.getElementById(containerId),
+                    value: text,
+                    size: 200,
+                    level: 'M'
+                });
+                log('✅ 二维码生成成功', 'success');
+                return true;
+            } catch (error) {
+                log('❌ 二维码生成失败: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                log('开始登录测试...');
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                log('登录响应: ' + JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    currentToken = data.data.token;
+                    resultDiv.innerHTML = '<div class="success">✅ 登录成功！Token: ' + currentToken.substring(0, 20) + '...</div>';
+                    log('登录成功，Token已保存', 'success');
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 登录失败: ' + data.message + '</div>';
+                    log('登录失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ 登录请求失败: ' + error.message + '</div>';
+                log('登录请求失败: ' + error.message, 'error');
+            }
+        }
+
+        async function testPayment() {
+            if (!currentToken) {
+                alert('请先登录！');
+                return;
+            }
+
+            const productType = document.getElementById('productType').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const resultDiv = document.getElementById('paymentResult');
+            const qrcodeDiv = document.getElementById('qrcodeContainer');
+            
+            try {
+                log('开始支付API测试...');
+                const response = await fetch('/api/payment/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + currentToken
+                    },
+                    body: JSON.stringify({
+                        product_type: productType,
+                        payment_method: paymentMethod
+                    })
+                });
+                
+                const data = await response.json();
+                log('支付API响应: ' + JSON.stringify(data, null, 2));
+                
+                if (data.status === 0) {
+                    resultDiv.innerHTML = '<div class="success">✅ 支付订单创建成功！</div>';
+                    log('支付订单创建成功', 'success');
+                    
+                    const order = data.data.order;
+                    const payUrl = data.data.payUrl;
+                    const qrCode = data.data.qrCode;
+                    
+                    let qrcodeHtml = '<h3>📋 订单信息</h3>' +
+                        '<p><strong>订单号:</strong> ' + order.order_no + '</p>' +
+                        '<p><strong>金额:</strong> ¥' + order.amount + '</p>' +
+                        '<p><strong>产品:</strong> ' + order.product_name + '</p>' +
+                        '<hr style="border-color: #4bc4a5; margin: 20px 0;">';
+                    
+                    if (payUrl) {
+                        // ouyun返回payUrl字段 - 直接跳转支付
+                        log('支付跳转链接 (payUrl): ' + payUrl, 'success');
+                        qrcodeHtml += '<h3>💳 直接支付</h3>' +
+                            '<div class="payment-buttons">' +
+                                '<a href="' + payUrl + '" target="_blank" class="pay-link">🚀 前往支付页面</a>' +
+                                '<button onclick="copyToClipboard(\'' + payUrl + '\')">📋 复制支付链接</button>' +
+                            '</div>' +
+                            '<p style="color: #4bc4a5; margin: 10px 0;">点击按钮打开支付页面</p>';
+                        
+                    } else if (qrCode) {
+                        // ouyun返回qrCode字段 - 生成二维码
+                        log('二维码链接 (qrCode): ' + qrCode, 'success');
+                        
+                        const qrId = 'qr-' + Date.now();
+                        qrcodeHtml += '<h3>📱 扫码支付</h3>' +
+                            '<div class="qrcode-display">' +
+                                '<canvas id="' + qrId + '"></canvas>' +
+                            '</div>' +
+                            '<p style="color: #4bc4a5; margin: 10px 0;">请使用手机扫描上方二维码</p>' +
+                            '<div class="payment-buttons">' +
+                                '<a href="' + qrCode + '" target="_blank" class="pay-link">🔗 或点击打开支付页面</a>' +
+                                '<button onclick="copyToClipboard(\'' + qrCode + '\')">📋 复制支付链接</button>' +
+                            '</div>' +
+                            '<details style="margin-top: 20px;">' +
+                                '<summary style="cursor: pointer; color: #aaa;">🔗 支付链接详情</summary>' +
+                                '<p style="word-break: break-all; font-size: 12px; color: #aaa; margin-top: 10px;">' + qrCode + '</p>' +
+                            '</details>';
+                        
+                        qrcodeDiv.innerHTML = qrcodeHtml;
+                        
+                        setTimeout(function() {
+                            generateQRCode(qrCode, qrId);
+                        }, 100);
+                        
+                    } else {
+                        qrcodeHtml += '<div class="error">❌ 未获取到支付链接（payUrl或qrCode都为空）</div>';
+                        qrcodeDiv.innerHTML = qrcodeHtml;
+                    }
+                    
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ 支付API失败: ' + data.message + '</div>';
+                    log('支付API失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ 支付请求失败: ' + error.message + '</div>';
+                log('支付请求失败: ' + error.message, 'error');
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    log('✅ 支付链接已复制到剪贴板', 'success');
+                    alert('支付链接已复制到剪贴板！');
+                }).catch(function() {
+                    log('❌ 复制失败', 'error');
+                    alert('复制失败，请手动复制');
+                });
+            } else {
+                log('❌ 浏览器不支持复制功能', 'error');
+                alert('浏览器不支持复制功能，请手动复制');
+            }
+        }
+
+        window.onload = function() {
+            log('测试页面 V2 已加载');
+            log('此版本支持生成真正的二维码图片');
+            log('请先点击"登录"按钮获取Token，然后测试支付功能');
+        };
+    </script>
+</body>
+</html>
+
+ 
+ 
+ 
+ 
+ 

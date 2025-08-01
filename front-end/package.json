@@ -1,0 +1,29 @@
+{
+  "name": "cloud-ide-vue",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build"
+  },
+  "dependencies": {
+    "core-js": "^3.6.5",
+    "element-ui": "^2.15.13",
+    "js-base64": "^3.7.5",
+    "js-md5": "^0.7.3",
+    "moment": "^2.29.4",
+    "vue": "^2.6.11",
+    "vue-router": "^3.2.0"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "~4.5.12",
+    "@vue/cli-plugin-router": "~4.5.12",
+    "@vue/cli-service": "~4.5.12",
+    "axios": "^1.2.1",
+    "less": "^4.1.3",
+    "less-loader": "4.1.0",
+    "sass": "^1.89.2",
+    "sass-loader": "^10.5.2",
+    "vue-template-compiler": "^2.6.11"
+  }
+}

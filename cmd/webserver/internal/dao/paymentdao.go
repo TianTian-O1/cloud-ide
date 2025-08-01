@@ -1,0 +1,181 @@
+package dao
+
+import (
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/mangohow/cloud-ide/cmd/webserver/internal/dao/db"
+	"github.com/mangohow/cloud-ide/cmd/webserver/internal/model"
+)
+
+type PaymentDao struct {
+	db *sqlx.DB
+}
+
+func NewPaymentDao() *PaymentDao {
+	return &PaymentDao{
+		db: db.DB(),
+	}
+}
+
+// =============== PaymentProduct 相关 ===============
+
+// GetPaymentProducts 获取所有可用的支付产品
+func (d *PaymentDao) GetPaymentProducts() ([]model.PaymentProduct, error) {
+	sql := `SELECT id, name, type, duration_days, price, description, status, create_time, update_time 
+			FROM t_payment_product WHERE status = 1 ORDER BY id ASC`
+	var products []model.PaymentProduct
+	err := d.db.Select(&products, sql)
+	return products, err
+}
+
+// GetPaymentProductByType 根据类型获取支付产品
+func (d *PaymentDao) GetPaymentProductByType(productType string) (*model.PaymentProduct, error) {
+	sql := `SELECT id, name, type, duration_days, price, description, status, create_time, update_time 
+			FROM t_payment_product WHERE type = ? AND status = 1`
+	var product model.PaymentProduct
+	err := d.db.Get(&product, sql, productType)
+	return &product, err
+}
+
+// GetPaymentProductById 根据ID获取支付产品
+func (d *PaymentDao) GetPaymentProductById(productId uint32) (*model.PaymentProduct, error) {
+	sql := `SELECT id, name, type, duration_days, price, description, status, create_time, update_time 
+			FROM t_payment_product WHERE id = ? AND status = 1`
+	var product model.PaymentProduct
+	err := d.db.Get(&product, sql, productId)
+	return &product, err
+}
+
+// =============== Order 相关 ===============
+
+// CreateOrder 创建订单
+func (d *PaymentDao) CreateOrder(order *model.Order) error {
+	sql := `INSERT INTO t_order (order_no, user_id, product_id, product_name, product_type, amount, 
+			status, payment_method) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err := d.db.Exec(sql, order.OrderNo, order.UserId, order.ProductId, order.ProductName,
+		order.ProductType, order.Amount, order.Status, order.PaymentMethod)
+	return err
+}
+
+// GetOrderByOrderNo 根据订单号获取订单
+func (d *PaymentDao) GetOrderByOrderNo(orderNo string) (*model.Order, error) {
+	sql := `SELECT id, order_no, user_id, product_id, product_name, product_type, amount, 
+			status, payment_method, payment_time as paid_at, create_time, update_time 
+			FROM t_order WHERE order_no = ?`
+	var order model.Order
+	err := d.db.Get(&order, sql, orderNo)
+	return &order, err
+}
+
+// GetOrdersByUserId 根据用户ID获取订单列表
+func (d *PaymentDao) GetOrdersByUserId(userId uint32, limit, offset int) ([]model.Order, error) {
+	sql := `SELECT id, order_no, user_id, product_id, product_name, product_type, amount, 
+			status, payment_method, payment_time as paid_at, create_time, update_time 
+			FROM t_order WHERE user_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?`
+	var orders []model.Order
+	err := d.db.Select(&orders, sql, userId, limit, offset)
+	return orders, err
+}
+
+// UpdateOrderStatus 更新订单状态
+func (d *PaymentDao) UpdateOrderStatus(orderNo string, status uint8, tradeNo string, paidAt *time.Time) error {
+	sql := `UPDATE t_order SET status = ?, payment_time = ? WHERE order_no = ?`
+	_, err := d.db.Exec(sql, status, paidAt, orderNo)
+	return err
+}
+
+// =============== UserSubscription 相关 ===============
+
+// CreateUserSubscription 创建用户订阅
+func (d *PaymentDao) CreateUserSubscription(subscription *model.UserSubscription) error {
+	sql := `INSERT INTO t_user_subscription (user_id, subscription_type, start_time, end_time, 
+			status, order_id, create_time, update_time) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err := d.db.Exec(sql, subscription.UserId, subscription.SubscriptionType,
+		subscription.StartTime, subscription.EndTime, subscription.Status,
+		subscription.OrderId, subscription.CreateTime, subscription.UpdateTime)
+	return err
+}
+
+// GetActiveSubscriptionByUserId 获取用户的有效订阅
+func (d *PaymentDao) GetActiveSubscriptionByUserId(userId uint32) (*model.UserSubscription, error) {
+	sql := `SELECT id, user_id, subscription_type, start_time, end_time, status, order_id, create_time, update_time 
+			FROM t_user_subscription WHERE user_id = ? AND status = 1 AND end_time > NOW() 
+			ORDER BY end_time DESC LIMIT 1`
+	var subscription model.UserSubscription
+	err := d.db.Get(&subscription, sql, userId)
+	return &subscription, err
+}
+
+// GetSubscriptionsByUserId 获取用户的所有订阅记录
+func (d *PaymentDao) GetSubscriptionsByUserId(userId uint32) ([]model.UserSubscription, error) {
+	sql := `SELECT id, user_id, subscription_type, start_time, end_time, status, order_id, create_time, update_time 
+			FROM t_user_subscription WHERE user_id = ? ORDER BY create_time DESC`
+	var subscriptions []model.UserSubscription
+	err := d.db.Select(&subscriptions, sql, userId)
+	return subscriptions, err
+}
+
+// ExpireSubscriptions 批量过期到期的订阅
+func (d *PaymentDao) ExpireSubscriptions() error {
+	sql := `UPDATE t_user_subscription SET status = 0, update_time = NOW() 
+			WHERE status = 1 AND end_time <= NOW()`
+	_, err := d.db.Exec(sql)
+	return err
+}
+
+// =============== PaymentRecord 相关 ===============
+
+// CreatePaymentRecord 创建支付记录
+func (d *PaymentDao) CreatePaymentRecord(record *model.PaymentRecord) error {
+	sql := `INSERT INTO t_payment_record (order_id, user_id, payment_gateway, payment_method, 
+			amount, trade_no, gateway_order_no, status, callback_data, create_time, update_time) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err := d.db.Exec(sql, record.OrderId, record.UserId, record.PaymentGateway,
+		record.PaymentMethod, record.Amount, record.TradeNo, record.GatewayOrderNo,
+		record.Status, record.CallbackData, record.CreateTime, record.UpdateTime)
+	return err
+}
+
+// UpdatePaymentRecordStatus 更新支付记录状态
+func (d *PaymentDao) UpdatePaymentRecordStatus(tradeNo string, status uint8, callbackData string) error {
+	sql := `UPDATE t_payment_record SET status = ?, callback_data = ?, update_time = ? WHERE trade_no = ?`
+	_, err := d.db.Exec(sql, status, callbackData, time.Now(), tradeNo)
+	return err
+}
+
+// GetPaymentRecordByTradeNo 根据交易号获取支付记录
+func (d *PaymentDao) GetPaymentRecordByTradeNo(tradeNo string) (*model.PaymentRecord, error) {
+	sql := `SELECT id, order_id, user_id, payment_gateway, payment_method, amount, trade_no, 
+			gateway_order_no, status, callback_data, create_time, update_time 
+			FROM t_payment_record WHERE trade_no = ?`
+	var record model.PaymentRecord
+	err := d.db.Get(&record, sql, tradeNo)
+	return &record, err
+}
+
+// =============== User VIP 相关 ===============
+
+// UpdateUserVipStatus 更新用户VIP状态
+func (d *PaymentDao) UpdateUserVipStatus(userId uint32, vipStatus uint8, expireTime *time.Time) error {
+	sql := `UPDATE t_user SET vip_status = ?, vip_expire_time = ? WHERE id = ?`
+	_, err := d.db.Exec(sql, vipStatus, expireTime, userId)
+	return err
+}
+
+// GetUserVipInfo 获取用户VIP信息
+func (d *PaymentDao) GetUserVipInfo(userId uint32) (*model.User, error) {
+	sql := `SELECT id, vip_status, vip_expire_time FROM t_user WHERE id = ?`
+	var user model.User
+	err := d.db.Get(&user, sql, userId)
+	return &user, err
+}
+
+// BatchExpireUserVip 批量过期用户VIP
+func (d *PaymentDao) BatchExpireUserVip() error {
+	sql := `UPDATE t_user SET vip_status = 0 WHERE vip_status = 1 AND vip_expire_time <= NOW()`
+	_, err := d.db.Exec(sql)
+	return err
+} 

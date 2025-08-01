@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付成功页面测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1d23;
+            color: #fff;
+        }
+        .container {
+            background: #2d3139;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4bc4a5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3a9d85;
+        }
+        .success {
+            color: #4bc4a5;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .debug {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .test-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .test-link {
+            display: block;
+            background: #4bc4a5;
+            color: white;
+            text-decoration: none;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            transition: background 0.3s;
+        }
+        .test-link:hover {
+            background: #3a9d85;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💳 支付成功页面测试</h1>
+        <p>这个页面用于测试修复后的支付成功处理功能。</p>
+        
+        <h2>🔧 功能修复说明</h2>
+        <ul>
+            <li><strong>URL参数解析</strong>：正确解析hash路由中的参数（#/payment/success?...）</li>
+            <li><strong>参数名称匹配</strong>：支持ouyun回调的参数名（out_trade_no, money等）</li>
+            <li><strong>后端验证</strong>：调用后端API验证支付状态并处理VIP升级</li>
+            <li><strong>JSON支持</strong>：后端现在支持JSON格式的支付回调请求</li>
+        </ul>
+
+        <h2>🧪 测试链接</h2>
+        <div class="test-links">
+            <a href="http://47.242.187.2:8080/idea/#/payment/success?pid=47&trade_no=2025070520000012345&out_trade_no=ORDER1751659098860616&type=alipay&name=VIP%20Day%20Card&money=9.90&trade_status=TRADE_SUCCESS&sign=ac80c253fb46da2cb885e9564cd72211&sign_type=MD5" 
+               class="test-link" target="_blank">
+                ✅ 测试支付成功页面（正确格式）
+            </a>
+            
+            <a href="http://47.242.187.2:8080/idea/#/payment/success?pid=47&trade_no=2025070520000067890&out_trade_no=ORDER1751659098860616&type=wechat&name=VIP%20Week%20Card&money=19.90&trade_status=TRADE_SUCCESS&sign=wrongsign123&sign_type=MD5" 
+               class="test-link" target="_blank">
+                ❌ 测试支付失败页面（签名错误）
+            </a>
+        </div>
+
+        <h2>📊 预期行为</h2>
+        <div class="debug">
+正确格式的链接应该：
+1. 显示 "正在验证支付..." 状态
+2. 解析URL参数并显示订单信息
+3. 调用后端API验证支付状态
+4. 根据验证结果显示成功或失败页面
+5. 如果成功，显示VIP激活消息并自动跳转
+
+签名错误的链接应该：
+1. 显示订单信息
+2. 调用后端API验证
+3. 显示签名验证失败错误
+4. 提供重新支付选项
+        </div>
+
+        <h2>🛠️ 技术改进</h2>
+        <ul>
+            <li><strong>前端</strong>：PaymentSuccess.vue 支持hash路由参数解析</li>
+            <li><strong>后端</strong>：PaymentCallback 支持JSON、form、query三种格式</li>
+            <li><strong>错误处理</strong>：完善的错误提示和调试信息</li>
+            <li><strong>用户体验</strong>：自动验证、进度条、状态反馈</li>
+        </ul>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <button onclick="window.location.href='http://47.242.187.2:8080'">🏠 返回主页</button>
+            <button onclick="window.location.href='http://47.242.187.2:8080/test-payment-v2.html'">💳 支付测试</button>
+        </div>
+    </div>
+
+    <script>
+        console.log('支付成功页面测试工具已加载');
+        console.log('点击上方链接测试修复后的支付成功处理功能');
+    </script>
+</body>
+</html> 
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付成功页面测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1d23;
+            color: #fff;
+        }
+        .container {
+            background: #2d3139;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4bc4a5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3a9d85;
+        }
+        .success {
+            color: #4bc4a5;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .debug {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .test-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .test-link {
+            display: block;
+            background: #4bc4a5;
+            color: white;
+            text-decoration: none;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            transition: background 0.3s;
+        }
+        .test-link:hover {
+            background: #3a9d85;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💳 支付成功页面测试</h1>
+        <p>这个页面用于测试修复后的支付成功处理功能。</p>
+        
+        <h2>🔧 功能修复说明</h2>
+        <ul>
+            <li><strong>URL参数解析</strong>：正确解析hash路由中的参数（#/payment/success?...）</li>
+            <li><strong>参数名称匹配</strong>：支持ouyun回调的参数名（out_trade_no, money等）</li>
+            <li><strong>后端验证</strong>：调用后端API验证支付状态并处理VIP升级</li>
+            <li><strong>JSON支持</strong>：后端现在支持JSON格式的支付回调请求</li>
+        </ul>
+
+        <h2>🧪 测试链接</h2>
+        <div class="test-links">
+            <a href="http://47.242.187.2:8080/idea/#/payment/success?pid=47&trade_no=2025070520000012345&out_trade_no=ORDER1751659098860616&type=alipay&name=VIP%20Day%20Card&money=9.90&trade_status=TRADE_SUCCESS&sign=ac80c253fb46da2cb885e9564cd72211&sign_type=MD5" 
+               class="test-link" target="_blank">
+                ✅ 测试支付成功页面（正确格式）
+            </a>
+            
+            <a href="http://47.242.187.2:8080/idea/#/payment/success?pid=47&trade_no=2025070520000067890&out_trade_no=ORDER1751659098860616&type=wechat&name=VIP%20Week%20Card&money=19.90&trade_status=TRADE_SUCCESS&sign=wrongsign123&sign_type=MD5" 
+               class="test-link" target="_blank">
+                ❌ 测试支付失败页面（签名错误）
+            </a>
+        </div>
+
+        <h2>📊 预期行为</h2>
+        <div class="debug">
+正确格式的链接应该：
+1. 显示 "正在验证支付..." 状态
+2. 解析URL参数并显示订单信息
+3. 调用后端API验证支付状态
+4. 根据验证结果显示成功或失败页面
+5. 如果成功，显示VIP激活消息并自动跳转
+
+签名错误的链接应该：
+1. 显示订单信息
+2. 调用后端API验证
+3. 显示签名验证失败错误
+4. 提供重新支付选项
+        </div>
+
+        <h2>🛠️ 技术改进</h2>
+        <ul>
+            <li><strong>前端</strong>：PaymentSuccess.vue 支持hash路由参数解析</li>
+            <li><strong>后端</strong>：PaymentCallback 支持JSON、form、query三种格式</li>
+            <li><strong>错误处理</strong>：完善的错误提示和调试信息</li>
+            <li><strong>用户体验</strong>：自动验证、进度条、状态反馈</li>
+        </ul>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <button onclick="window.location.href='http://47.242.187.2:8080'">🏠 返回主页</button>
+            <button onclick="window.location.href='http://47.242.187.2:8080/test-payment-v2.html'">💳 支付测试</button>
+        </div>
+    </div>
+
+    <script>
+        console.log('支付成功页面测试工具已加载');
+        console.log('点击上方链接测试修复后的支付成功处理功能');
+    </script>
+</body>
+</html> 
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付成功页面测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1d23;
+            color: #fff;
+        }
+        .container {
+            background: #2d3139;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4bc4a5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3a9d85;
+        }
+        .success {
+            color: #4bc4a5;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .debug {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .test-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .test-link {
+            display: block;
+            background: #4bc4a5;
+            color: white;
+            text-decoration: none;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            transition: background 0.3s;
+        }
+        .test-link:hover {
+            background: #3a9d85;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💳 支付成功页面测试</h1>
+        <p>这个页面用于测试修复后的支付成功处理功能。</p>
+        
+        <h2>🔧 功能修复说明</h2>
+        <ul>
+            <li><strong>URL参数解析</strong>：正确解析hash路由中的参数（#/payment/success?...）</li>
+            <li><strong>参数名称匹配</strong>：支持ouyun回调的参数名（out_trade_no, money等）</li>
+            <li><strong>后端验证</strong>：调用后端API验证支付状态并处理VIP升级</li>
+            <li><strong>JSON支持</strong>：后端现在支持JSON格式的支付回调请求</li>
+        </ul>
+
+        <h2>🧪 测试链接</h2>
+        <div class="test-links">
+            <a href="http://47.242.187.2:8080/idea/#/payment/success?pid=47&trade_no=2025070520000012345&out_trade_no=ORDER1751659098860616&type=alipay&name=VIP%20Day%20Card&money=9.90&trade_status=TRADE_SUCCESS&sign=ac80c253fb46da2cb885e9564cd72211&sign_type=MD5" 
+               class="test-link" target="_blank">
+                ✅ 测试支付成功页面（正确格式）
+            </a>
+            
+            <a href="http://47.242.187.2:8080/idea/#/payment/success?pid=47&trade_no=2025070520000067890&out_trade_no=ORDER1751659098860616&type=wechat&name=VIP%20Week%20Card&money=19.90&trade_status=TRADE_SUCCESS&sign=wrongsign123&sign_type=MD5" 
+               class="test-link" target="_blank">
+                ❌ 测试支付失败页面（签名错误）
+            </a>
+        </div>
+
+        <h2>📊 预期行为</h2>
+        <div class="debug">
+正确格式的链接应该：
+1. 显示 "正在验证支付..." 状态
+2. 解析URL参数并显示订单信息
+3. 调用后端API验证支付状态
+4. 根据验证结果显示成功或失败页面
+5. 如果成功，显示VIP激活消息并自动跳转
+
+签名错误的链接应该：
+1. 显示订单信息
+2. 调用后端API验证
+3. 显示签名验证失败错误
+4. 提供重新支付选项
+        </div>
+
+        <h2>🛠️ 技术改进</h2>
+        <ul>
+            <li><strong>前端</strong>：PaymentSuccess.vue 支持hash路由参数解析</li>
+            <li><strong>后端</strong>：PaymentCallback 支持JSON、form、query三种格式</li>
+            <li><strong>错误处理</strong>：完善的错误提示和调试信息</li>
+            <li><strong>用户体验</strong>：自动验证、进度条、状态反馈</li>
+        </ul>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <button onclick="window.location.href='http://47.242.187.2:8080'">🏠 返回主页</button>
+            <button onclick="window.location.href='http://47.242.187.2:8080/test-payment-v2.html'">💳 支付测试</button>
+        </div>
+    </div>
+
+    <script>
+        console.log('支付成功页面测试工具已加载');
+        console.log('点击上方链接测试修复后的支付成功处理功能');
+    </script>
+</body>
+</html> 
+ 
+ 
+ 
+ 
+ 

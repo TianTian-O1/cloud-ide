@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-ide-control-plane
+  namespace: cloud-ide
+  labels:
+    app: cloud-ide-control-plane
+spec:
+  selector:
+    matchLabels:
+      app: cloud-ide-control-plane
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: cloud-ide-control-plane
+    spec:
+      containers:
+      - name: manager
+        image: registry.cn-hangzhou.aliyuncs.com/mangohow-apps/cloud-ide-control-plane:v1.1
+        args:
+          - -zap-log-level
+          - "error"
+          - -mode
+          - "dev"
+          - -gateway-token
+          - "XnRbVnoUZa0rT9xKAwHX0Zof3H7VpfCe"
+          - -gateway-path
+          - "/internal/endpoint"
+          - -gateway-service
+          - "cloud-ide-gateway-svc"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        ports:
+          - containerPort: 6387
+          - containerPort: 8081
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+      serviceAccountName: cloud-ide-control-plane-sa
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cloud-ide-control-plane-svc
+  name: cloud-ide-control-plane-svc
+  namespace: cloud-ide
+spec:
+  ports:
+    - port: 6387
+      protocol: TCP
+      targetPort: 6387
+      nodePort: 32387
+  selector:
+    app: cloud-ide-control-plane
+  type: NodePort

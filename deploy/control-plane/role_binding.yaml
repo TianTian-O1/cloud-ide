@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cloud-ide-control-plane-rb
+  namespace: cloud-ide-ws
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cloud-ide-control-plane-role
+subjects:
+  - kind: ServiceAccount
+    name: cloud-ide-control-plane-sa
+    namespace: cloud-ide

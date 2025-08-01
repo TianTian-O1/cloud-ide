@@ -1,0 +1,41 @@
+server:
+  host: "0.0.0.0"
+  port: 8088
+  name: "unknown"
+  mode: "dev"
+
+mysql:
+  dataSourceName: "root:123456@(cloud-ide-mysql-svc:3306)/cloudide?charset=utf8mb4&parseTime=true&loc=Local"
+  maxOpenConns: 20
+  maxIdleConns: 10
+
+logger:
+  level: "DEBUG"
+  filePath: "./log_file"
+  fileName: "log.log"
+  maxFileSize: 1073741824
+  toFile: false
+
+redis:
+  addr: "redis-svc.cloud-ide.svc.cluster.local:6379"
+  poolSize: 10
+  minIdleConns: 5
+  password: ""
+  db: 0
+
+grpc:
+  addr: "cloud-ide-control-plane-svc:6387"
+
+email:
+  enabled: true
+  host: "smtp.qq.com"
+  port: 587
+  senderEmail: "3851587018@qq.com"
+  authCode: "dtvnpnqpeeskcedb"
+
+oauth:
+  linuxdo:
+    client_id: ""
+    client_secret: ""
+    redirect_url: "https://tiantianai.co/auth/oauth/linuxdo/callback"
+    base_url: "https://linux.do"

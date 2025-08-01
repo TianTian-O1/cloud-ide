@@ -1,0 +1,16 @@
+domain: mangohow.com
+layout:
+- go.kubebuilder.io/v3
+projectName: cloud-ide-k8s-operator
+repo: github.com/mangohow/cloud-ide-k8s-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: mangohow.com
+  group: cloud-ide
+  kind: WorkSpace
+  path: github.com/mangohow/cloud-ide-k8s-operator/api/v1
+  version: v1
+version: "3"

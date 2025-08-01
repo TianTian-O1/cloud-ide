@@ -1,0 +1,30 @@
+.delete-confirm {
+    background: #323640 !important;
+    color: #fff !important;
+    border: 1px solid #3f3f3f !important;
+    padding-bottom: 16px !important;
+    position: absolute;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.delete-confirm .el-message-box__content {
+    color: #d3d1d1 !important;
+    font-size: 16px;
+    line-height: 16px;
+    margin: 20px 0;
+}
+
+.delete-confirm  .el-message-box__title {
+    color: #fff !important;
+}
+
+.delete-confirm .el-button {
+    padding: 9px 24px;
+}
+
+.delete-confirm .el-input__inner {
+    background-color: #3C414C !important;
+    border: 1px solid #454a53 !important;
+}

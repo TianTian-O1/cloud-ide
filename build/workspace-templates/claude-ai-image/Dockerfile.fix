@@ -1,0 +1,10 @@
+# 基于现有的Claude AI镜像进行修复
+FROM cloud-ide-claude-ai:v1.0
+
+# 拷贝修正后的启动脚本
+COPY .init.sh /.workspace/
+
+# 确保脚本可执行
+RUN chmod +x /.workspace/.init.sh
+
+CMD ["/bin/bash", "/.workspace/.init.sh"]

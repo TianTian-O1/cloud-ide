@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "./;pb";
+
+// 工作空间的资源限制
+message ResourceLimit {
+  string cpu = 1;
+  string memory = 2;
+  string storage = 3;
+}
+
+// 创建请求
+message RequestCreate {
+  string sid = 1;
+  string uid = 2;
+  string image = 3;
+  int32 port = 4;
+  string gitRepository = 5;
+  string volumeMountPath = 6;
+  ResourceLimit resourceLimit = 7;
+  map<string, string> envVars = 8;  // 环境变量配置
+}
+
+message ResponseCreate {
+  enum Status {
+    Success = 0;
+    AlreadyExist = 1;
+    Error = 2;
+  }
+
+  Status status = 1;
+  string message = 2;
+}
+
+message RequestStart {
+  string sid = 1;
+  string uid = 2;
+  ResourceLimit resourceLimit = 3;
+}
+
+// 工作空间运行信息
+message ResponseStart {
+  enum Status {
+    Success = 0;
+    NotFound = 1;
+    Error = 2;
+  };
+
+  Status status = 1;
+  string message = 2;
+}
+
+message RequestStop {
+  string sid = 1;
+  string uid = 2;
+}
+
+message ResponseStop {
+  enum Status {
+    Success = 0;
+    NotFound = 1;
+    Error = 2;
+  }
+
+  Status status = 1;
+  string message = 2;
+}
+
+message RequestDelete {
+  string sid = 1;
+  string uid = 2;
+}
+
+message ResponseDelete {
+  enum Status {
+    Success = 0;
+    Error = 1;
+  }
+
+  Status status = 1;
+  string message = 2;
+}
+
+message RequestRunningWorkspaces {
+  string uid = 1;
+}
+
+message ResponseRunningWorkspace {
+  enum Status {
+    Success = 0;
+    NotFound = 1;
+  }
+
+  message WorkspaceBasicInfo {
+    string sid = 1;
+    string name = 2;
+  }
+
+  repeated WorkspaceBasicInfo workspaces = 1;
+}
+
+
+service CloudIdeService {
+  // 创建云IDE空间并等待Pod状态变为Running,第一次创建,需要挂载存储卷
+  rpc createSpace(RequestCreate) returns (ResponseCreate);
+  // 启动(创建)云IDE空间,非第一次创建,无需挂载存储卷,使用之前的存储卷
+  rpc startSpace(RequestStart) returns (ResponseStart);
+  // 删除云IDE空间,需要删除存储卷
+  rpc deleteSpace(RequestDelete) returns (ResponseDelete);
+  // 停止(删除)云工作空间,无需删除存储卷
+  rpc stopSpace(RequestStop) returns (ResponseStop);
+  // 获取运行中的Workspace
+  rpc runningWorkspaces(RequestRunningWorkspaces) returns (ResponseRunningWorkspace);
+}

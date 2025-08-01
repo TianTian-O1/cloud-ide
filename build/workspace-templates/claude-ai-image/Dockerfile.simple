@@ -1,0 +1,120 @@
+# 精简版Claude AI开发环境
+FROM codercom/code-server:latest
+
+# 切换到 root 用户
+USER root
+WORKDIR /app
+
+# 设置环境变量
+ENV TZ=Asia/Shanghai \
+    DEBIAN_FRONTEND=noninteractive \
+    NODE_ENV=production
+
+# 安装必要依赖和Claude CLI
+RUN apt-get update && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends \
+        nodejs \
+        python3 \
+        python3-pip \
+        curl \
+        ca-certificates && \
+    npm install -g @anthropic-ai/claude-code --silent && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /root/.npm
+
+# 预先创建配置目录
+RUN mkdir -p /root/.config/code-server /root/.local/share/code-server/User
+
+# 创建 code-server 配置
+RUN cat > /root/.config/code-server/config.yaml << 'CONFIG_EOF'
+bind-addr: 0.0.0.0:9999
+auth: none
+disable-update-check: true
+disable-telemetry: true
+CONFIG_EOF
+
+# 创建 VS Code 用户设置
+RUN cat > /root/.local/share/code-server/User/settings.json << 'SETTINGS_EOF'
+{
+    "files.exclude": {
+        "**/.*": true,
+        "**/.git": true,
+        "**/node_modules": true,
+        "**/.vscode": false,
+        "**/.gitignore": false,
+        "**/.env": false
+    },
+    "files.autoSave": "afterDelay",
+    "editor.minimap.enabled": false,
+    "workbench.startupEditor": "none",
+    "terminal.integrated.defaultProfile.linux": "bash"
+}
+SETTINGS_EOF
+
+# 创建启动脚本
+RUN cat > /app/start-claude.sh << 'SCRIPT_EOF'
+#!/bin/bash
+
+echo "🚀 Claude AI助手开发环境启动中..."
+
+# 使用用户提供的API配置
+if [ -n "$ANTHROPIC_AUTH_TOKEN" ]; then
+    export ANTHROPIC_API_KEY="$ANTHROPIC_AUTH_TOKEN"
+    echo "✅ 已配置用户API密钥"
+fi
+
+if [ -n "$ANTHROPIC_BASE_URL" ]; then
+    echo "✅ 已配置用户API地址: $ANTHROPIC_BASE_URL"
+fi
+
+# 创建欢迎文档
+cat > /root/README.md << 'DOC_INNER_EOF'
+# Claude AI助手开发环境
+
+## 使用说明
+
+### 1. Claude CLI 命令
+```bash
+# 与Claude对话
+claude "请帮我写一个Python函数"
+
+# 分析代码文件
+claude --file app.py "请优化这个代码"
+
+# 生成代码
+claude "请写一个React组件"
+```
+
+### 2. 环境变量配置
+- ANTHROPIC_API_KEY: 您的Claude API密钥
+- ANTHROPIC_BASE_URL: API地址（可选）
+
+### 3. 快速开始
+在终端中输入 `claude --help` 查看所有可用命令。
+
+享受与Claude AI的编程之旅！🎉
+DOC_INNER_EOF
+
+echo "📚 已创建使用文档: /root/README.md"
+echo "✅ Claude CLI工具已就绪"
+echo "🔧 启动 Code Server..."
+
+# 启动 code-server
+exec /usr/bin/code-server \
+    --bind-addr 0.0.0.0:9999 \
+    --auth none \
+    --disable-update-check \
+    --disable-telemetry \
+    "${WORKSPACE_DIR:-/root}"
+SCRIPT_EOF
+
+# 设置脚本权限
+RUN chmod +x /app/start-claude.sh
+
+# 暴露端口
+EXPOSE 9999
+
+# 设置启动命令
+ENTRYPOINT ["/app/start-claude.sh"]

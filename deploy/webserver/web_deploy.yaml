@@ -1,0 +1,90 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cloud-ide-web
+    apps: cloud-ide
+  name: cloud-ide-web
+  namespace: cloud-ide
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloud-ide-web
+  template:
+    metadata:
+      labels:
+        app: cloud-ide-web
+    spec:
+      containers:
+      - name: web
+        image: cloud-ide-webserver:v1.14-claude-config
+        imagePullPolicy: IfNotPresent
+        args:
+          - ./server           # 可执行文件
+          - -mode              # 指定运行模式
+          - "dev"
+          - -mysql-datasource  # 指定mysql datasource
+          - "root:123456@(cloud-ide-mysql-svc:3306)/cloudide?charset=utf8mb4&parseTime=true&loc=Local"
+          - -log-level         # 指定日志等级
+          - "debug"
+          - -email-enabled     # 启用邮箱验证
+          - "enabled"
+          - -grpc-addr          # 指定grpc地址，即control-plane的service和port
+          - "cloud-ide-control-plane-svc:6387"
+        env:
+          - name: LINUXDO_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: oauth-secrets
+                key: LINUXDO_CLIENT_ID
+                optional: true
+          - name: LINUXDO_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: oauth-secrets
+                key: LINUXDO_CLIENT_SECRET
+                optional: true
+          - name: LINUXDO_REDIRECT_URL
+            value: "https://tiantianai.co/auth/oauth/linuxdo/callback"
+          - name: LINUXDO_BASE_URL
+            value: "https://connect.linux.do"
+        ports:
+        - containerPort: 8088
+        resources:
+          requests:
+            cpu: "0.5"
+            memory: "128Mi"
+          limits:
+            cpu: "2"
+            memory: "512Mi"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config-volume
+        configMap:
+          name: webserver-config
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cloud-ide-web-svc
+    apps: cloud-ide
+  name: cloud-ide-web-svc
+  namespace: cloud-ide
+spec:
+  ports:
+  - port: 8088
+    protocol: TCP
+    targetPort: 8088
+    nodePort: 30434
+  selector:
+    app: cloud-ide-web
+  type: NodePort
+

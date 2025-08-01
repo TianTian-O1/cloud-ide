@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-ide-control-plane
+  namespace: cloud-ide
+  labels:
+    app: cloud-ide-control-plane
+    apps: cloud-ide
+spec:
+  selector:
+    matchLabels:
+      app: cloud-ide-control-plane
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: cloud-ide-control-plane
+    spec:
+      containers:
+      - name: manager
+        image: cloud-ide-control-plane:v1.10-claude-env
+        imagePullPolicy: IfNotPresent
+        args:
+          - -zap-log-level
+          - "error"
+          - -mode                        # 电脑配置低的情况下最好运行在dev模式，否则workspace会由于资源不足无法启动
+          - "dev"
+          - -gateway-token               # 指定访问gateway注册Workspace时的token
+          - "XnRbVnoUZa0rT9xKAwHX0Zof3H7VpfCe"
+          - -gateway-path                # 指定gateway中注册Workspace的HTTPS路径
+          - "/internal/endpoint"
+          - -gateway-service             # 指定gateway的service名称
+          - "cloud-ide-gateway-svc"
+          - -git-cloner-image            # 指定用于克隆git仓库的镜像
+          - "git-cloner:v1.0"
+          - -storage-class-name
+          - "standard"                   # 使用可用的存储类
+          - -dynamic-storage-enabled     # 开启动态卷制备
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        ports:
+          - containerPort: 6387
+          - containerPort: 8081
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+      serviceAccountName: cloud-ide-control-plane-sa
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cloud-ide-control-plane-svc
+    apps: cloud-ide
+  name: cloud-ide-control-plane-svc
+  namespace: cloud-ide
+spec:
+  ports:
+    - port: 6387
+      protocol: TCP
+      targetPort: 6387
+  selector:
+    app: cloud-ide-control-plane
+  type: ClusterIP

@@ -1,0 +1,50 @@
+# build front end project
+FROM node:18 as vuebuilder
+
+WORKDIR /build
+
+COPY front-end .
+
+RUN npm config set registry https://registry.npmmirror.com
+
+RUN npm install --legacy-peer-deps --force
+RUN npm run build
+
+# build agent
+FROM golang:1.21 as builder
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV CGO_ENABLED=0        \
+    GOOS=linux           \
+	GOPROXY="https://goproxy.cn,direct" \
+	GO111MODULE=on
+
+WORKDIR /build
+
+COPY . .
+
+RUN go mod download
+
+RUN  go build -ldflags="-s -w" -o agent cmd/gateway/main.go
+
+
+# running container
+FROM openresty/openresty
+
+ENV TZ=Asia/Shanghai
+
+WORKDIR /agent
+
+# copy static resources
+COPY --from=vuebuilder /build/dist /usr/local/openresty/nginx/html
+COPY --from=vuebuilder /build/src/assets/images /usr/local/openresty/nginx/html/images
+
+# copy agent and nginx conf
+COPY --from=builder /build/agent .
+COPY --from=builder /build/config/nginx ./nginx
+
+
+EXPOSE 80
+
+ENTRYPOINT ["./agent"]

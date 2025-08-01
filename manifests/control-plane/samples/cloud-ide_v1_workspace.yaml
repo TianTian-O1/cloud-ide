@@ -1,0 +1,18 @@
+apiVersion: cloud-ide.mangohow.com/v1
+kind: WorkSpace
+metadata:
+  labels:
+    app.kubernetes.io/name: workspace
+    app.kubernetes.io/instance: workspace-sample
+    app.kubernetes.io/part-of: cloud-ide-k8s-operator
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cloud-ide-k8s-operator
+  name: workspace-sample
+  namespace: cloud-ide
+spec:
+  cpu: "2"
+  memory: "1Gi"
+  storage: "5Gi"
+  image: "nginx"
+  port: 9999
+  mountPath: "/user_data/"

@@ -1,0 +1,112 @@
+
+#user  nobody;
+worker_processes  {{.WorkerProcess}};
+
+error_log  logs/error.log;
+
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  {{.WorkerConnections}};
+}
+
+http {
+	access_log logs/access.log;
+	error_log logs/error.log;
+
+
+	sendfile on;
+	gzip  on;
+	gzip_min_length 1k;
+	gzip_comp_level 5;
+	gzip_types text/plain application/javascript application/x-javascript text/javascript text/xml text/css;
+	gzip_vary on;
+
+	lua_shared_dict endpoints {{.SharedDictSize}};
+
+	include mime.types;
+
+    server {
+		listen 443 ssl http2;
+
+		ssl_certificate {{.ServerCrt}};
+		ssl_certificate_key {{.ServerKey}};
+		ssl_session_timeout 5m;
+		ssl_protocols TLSv1.2 TLSv1.3;
+		ssl_session_cache shared:SSL:50m;
+		ssl_session_tickets off;
+		ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE;
+		ssl_prefer_server_ciphers on;
+
+
+        # 静态资源配置
+        location / {
+            root html;
+            index index.html index.htm;
+        }
+
+		resolver kube-dns.kube-system.svc.cluster.local valid=5s;
+
+        {{ if not .Debug }}
+        # web反向代理
+        location /api {
+	        proxy_set_header Host $host;
+	        proxy_set_header X-Real-IP $remote_addr;
+	        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	        proxy_pass http://{{.WebServiceName}}:{{.WebPort}};
+        }
+        {{ end }}
+
+		{{ if not .Debug }}
+        location /auth {
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass http://{{.WebServiceName}}:{{.WebPort}};
+        }
+        {{ end }}
+
+        location /internal/endpoint {
+           set $token "{{.Token}}";
+           content_by_lua_file  '{{.NginxLuaPath}}/endpoint.lua';
+        }
+
+		{{ if .Debug }}
+        location /internal/test {
+            content_by_lua_file '{{.NginxLuaPath}}/test.lua';
+        }
+        {{ end }}
+
+        location ^~ /ws/ {
+            set $backend '';
+            set $pth '';
+            rewrite_by_lua_file '{{.NginxLuaPath}}/proxy.lua';
+
+            # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+            
+            # Code-server specific headers
+            proxy_set_header Accept-Encoding gzip;
+            proxy_cache_bypass $http_upgrade;
+            
+            # Timeout settings for WebSocket
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+            proxy_connect_timeout 60s;
+            
+            # Keep alive
+            proxy_buffering off;
+            
+            proxy_pass http://$backend/$pth;
+        }
+
+    }
+}
