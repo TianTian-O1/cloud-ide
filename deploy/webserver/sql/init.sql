@@ -73,6 +73,7 @@ INSERT INTO `t_space_template` VALUES (3, 1, 'C/C++', 'c/c++ workspace with gcc 
 INSERT INTO `t_space_template` VALUES (4, 1, 'Java', 'java workspace', 'Java', 'java', 0, 'images/java.png', '2023-02-26 16:56:43', '2023-02-26 16:57:33');
 INSERT INTO `t_space_template` VALUES (5, 1, 'Vue', 'Vue workspace', 'Vue,Yarn', 'Vue', 0, 'images/vue.png', '2023-02-26 17:05:18', '2023-02-26 17:05:20');
 INSERT INTO `t_space_template` VALUES (6, 1, 'Python', 'python workspace', 'Python', 'Python', 0, 'images/python.png', '2023-02-26 17:05:45', '2023-02-26 17:05:48');
+INSERT INTO `t_space_template` VALUES (7, 1, 'Claude AI', 'Claude AI开发环境，集成Claude代码助手和多模型路由', 'Claude,AI,代码助手', 'claude-ai-image:v5.0-fast', 0, 'images/claude.png', '2024-01-01 00:00:00', '1970-01-01 00:00:00');
 
 -- ----------------------------
 -- Table structure for t_spacespec

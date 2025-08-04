@@ -1,0 +1,46 @@
+#!/bin/bash 
+
+function graceful_exit () {
+    echo "receive SIGTERM, exiting..."
+    pkill -f code-server
+    exit 0
+}
+
+trap graceful_exit SIGTERM
+
+# 确保工作空间目录存在
+mkdir -p /root/workspace
+
+# 一次性设置（只在首次运行时）
+if [ ! -f "/root/.claude_setup_done" ]; then
+    echo "Quick setup..."
+    
+    # 设置zsh为默认shell
+    chsh -s /bin/zsh
+    
+    # 基础zsh配置
+    cat > /root/.zshrc << 'EOF'
+export PATH=/opt/code-server/bin:$PATH
+export USER_WORKSPACE=/root/workspace
+alias ll='ls -la'
+alias la='ls -A'
+alias l='ls -CF'
+cd /root/workspace
+echo "🚀 Claude AI Development Environment Ready!"
+echo "📁 Workspace: /root/workspace"
+echo "🔧 Tools: claude-code-router available"
+EOF
+    
+    touch /root/.claude_setup_done
+    echo "Setup completed!"
+fi
+
+# 快速启动code-server
+echo "Starting code-server..."
+exec /opt/code-server/bin/code-server \
+    --port 9999 \
+    --host 0.0.0.0 \
+    --auth none \
+    --disable-update-check \
+    --locale zh-cn \
+    --open /root/workspace

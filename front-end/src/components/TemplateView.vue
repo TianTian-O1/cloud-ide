@@ -133,239 +133,55 @@
           
           <!-- Claude模板专用配置 -->
           <div v-if="selectedTemplate && selectedTemplate.id === 7" class="claude-config">
-            <el-divider content-position="left">🤖 多AI提供商配置</el-divider>
+            <el-divider content-position="left">🤖 Claude AI 配置</el-divider>
             
-            <!-- API提供商选择 -->
-            <el-form-item label="选择AI提供商:" label-width="180px">
-              <el-checkbox-group v-model="selectedProviders" @change="handleProviderChange">
-                <el-checkbox label="anthropic">
-                  <span style="color: #D97757;">🧠 Anthropic (Claude)</span>
-                </el-checkbox>
-                <el-checkbox label="openai">
-                  <span style="color: #10A37F;">🚀 OpenAI (GPT)</span>
-                </el-checkbox>
-                <el-checkbox label="deepseek">
-                  <span style="color: #1890FF;">🔍 DeepSeek</span>
-                </el-checkbox>
-                <el-checkbox label="gemini">
-                  <span style="color: #4285F4;">💎 Google (Gemini)</span>
-                </el-checkbox>
-                <el-checkbox label="moonshot">
-                  <span style="color: #722ED1;">🌙 月之暗面 (Kimi)</span>
-                </el-checkbox>
-                <el-checkbox label="qwen">
-                  <span style="color: #FF6A00;">🔥 阿里通义千问</span>
-                </el-checkbox>
-              </el-checkbox-group>
-              <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                <i class="el-icon-info"></i>
-                选择您要使用的AI服务提供商，可多选。至少选择一个。
-              </div>
-            </el-form-item>
-
-            <!-- Anthropic API 配置 -->
-            <div v-if="selectedProviders.includes('anthropic')">
-              <el-divider content-position="left">🧠 Anthropic (Claude) 配置</el-divider>
-              <el-form-item label="Claude API密钥:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.anthropic_auth_token" 
-                  placeholder="请输入您的Claude API密钥 (sk-...)"
-                  type="password"
-                  show-password
-                  clearable
-                  style="width: 100%">
-                </el-input>
-                <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                  <i class="el-icon-info"></i>
-                  从 <a href="https://console.anthropic.com" target="_blank" style="color: #D97757;">Anthropic Console</a> 获取
-                </div>
-              </el-form-item>
-              
-              <el-form-item label="Claude API地址:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.anthropic_base_url" 
-                  placeholder="https://api.anthropic.com (默认)"
-                  clearable
-                  style="width: 100%">
-                </el-input>
-              </el-form-item>
-            </div>
-
-            <!-- OpenAI API 配置 -->
-            <div v-if="selectedProviders.includes('openai')">
-              <el-divider content-position="left">🚀 OpenAI (GPT) 配置</el-divider>
-              <el-form-item label="OpenAI API密钥:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.openai_api_key" 
-                  placeholder="请输入您的OpenAI API密钥 (sk-...)"
-                  type="password"
-                  show-password
-                  clearable
-                  style="width: 100%">
-                </el-input>
-                <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                  <i class="el-icon-info"></i>
-                  从 <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #10A37F;">OpenAI Platform</a> 获取
-                </div>
-              </el-form-item>
-              
-              <el-form-item label="OpenAI API地址:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.openai_base_url" 
-                  placeholder="https://api.openai.com/v1 (默认)"
-                  clearable
-                  style="width: 100%">
-                </el-input>
-              </el-form-item>
-            </div>
-
-            <!-- DeepSeek API 配置 -->
-            <div v-if="selectedProviders.includes('deepseek')">
-              <el-divider content-position="left">🔍 DeepSeek 配置</el-divider>
-              <el-form-item label="DeepSeek API密钥:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.deepseek_api_key" 
-                  placeholder="请输入您的DeepSeek API密钥"
-                  type="password"
-                  show-password
-                  clearable
-                  style="width: 100%">
-                </el-input>
-                <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                  <i class="el-icon-info"></i>
-                  从 <a href="https://platform.deepseek.com" target="_blank" style="color: #1890FF;">DeepSeek Platform</a> 获取
-                </div>
-              </el-form-item>
-            </div>
-
-            <!-- Gemini API 配置 -->
-            <div v-if="selectedProviders.includes('gemini')">
-              <el-divider content-position="left">💎 Google Gemini 配置</el-divider>
-              <el-form-item label="Gemini API密钥:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.gemini_api_key" 
-                  placeholder="请输入您的Gemini API密钥"
-                  type="password"
-                  show-password
-                  clearable
-                  style="width: 100%">
-                </el-input>
-                <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                  <i class="el-icon-info"></i>
-                  从 <a href="https://makersuite.google.com/app/apikey" target="_blank" style="color: #4285F4;">Google AI Studio</a> 获取
-                </div>
-              </el-form-item>
-            </div>
-
-            <!-- Moonshot API 配置 -->
-            <div v-if="selectedProviders.includes('moonshot')">
-              <el-divider content-position="left">🌙 月之暗面 (Kimi) 配置</el-divider>
-              <el-form-item label="Moonshot API密钥:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.moonshot_api_key" 
-                  placeholder="请输入您的Moonshot API密钥"
-                  type="password"
-                  show-password
-                  clearable
-                  style="width: 100%">
-                </el-input>
-                <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                  <i class="el-icon-info"></i>
-                  从 <a href="https://platform.moonshot.cn" target="_blank" style="color: #722ED1;">Moonshot Platform</a> 获取
-                </div>
-              </el-form-item>
-            </div>
-
-            <!-- Qwen API 配置 -->
-            <div v-if="selectedProviders.includes('qwen')">
-              <el-divider content-position="left">🔥 阿里通义千问 配置</el-divider>
-              <el-form-item label="Qwen API密钥:" label-width="180px">
-                <el-input 
-                  v-model="spaceForm.qwen_api_key" 
-                  placeholder="请输入您的通义千问API密钥"
-                  type="password"
-                  show-password
-                  clearable
-                  style="width: 100%">
-                </el-input>
-                <div style="color: #999; font-size: 12px; margin-top: 5px;">
-                  <i class="el-icon-info"></i>
-                  从 <a href="https://dashscope.console.aliyun.com" target="_blank" style="color: #FF6A00;">阿里云百炼</a> 获取
-                </div>
-              </el-form-item>
-            </div>
-            
-            <el-form-item label="主模型:" label-width="180px">
-              <el-select 
-                v-model="spaceForm.big_model" 
-                placeholder="选择或输入主模型 (默认: claude-3-5-sonnet-20241022)"
-                filterable
-                allow-create
+            <!-- API密钥 -->
+            <el-form-item label="API密钥:" label-width="180px">
+              <el-input 
+                v-model="spaceForm.anthropic_auth_token" 
+                placeholder="请输入您的API密钥 (sk-...)"
+                type="password"
+                show-password
                 clearable
                 style="width: 100%">
-                <el-option label="claude-3-5-sonnet-20241022 (最新)" value="claude-3-5-sonnet-20241022"></el-option>
-                <el-option label="claude-3-opus-20240229 (最强)" value="claude-3-opus-20240229"></el-option>
-                <el-option label="claude-3-sonnet-20240229" value="claude-3-sonnet-20240229"></el-option>
-                <el-option label="claude-3-haiku-20240307 (最快)" value="claude-3-haiku-20240307"></el-option>
-                <el-option label="分隔线" value="" disabled style="color: #c0c4cc;">--- 新版本格式 ---</el-option>
-                <el-option label="anthropic/claude-opus-4" value="anthropic/claude-opus-4"></el-option>
-                <el-option label="anthropic/claude-haiku-4" value="anthropic/claude-haiku-4"></el-option>
-                <el-option label="claude-4-opus" value="claude-4-opus"></el-option>
-                <el-option label="claude-4-sonnet" value="claude-4-sonnet"></el-option>
-                <el-option label="claude-4-haiku" value="claude-4-haiku"></el-option>
-                <el-option label="claude-3.7-opus" value="claude-3.7-opus"></el-option>
-                <el-option label="claude-3.7-sonnet" value="claude-3.7-sonnet"></el-option>
-                <el-option label="claude-3.7-haiku" value="claude-3.7-haiku"></el-option>
-                <el-option label="claude-opus-4-20250514" value="claude-opus-4-20250514"></el-option>
-                <el-option label="claude-sonnet-4-20250514" value="claude-sonnet-4-20250514"></el-option>
-                <el-option label="claude-haiku-4-20250514" value="claude-haiku-4-20250514"></el-option>
-                <el-option label="分隔线" value="" disabled style="color: #c0c4cc;">--- 其他AI模型 ---</el-option>
-                <el-option label="gpt-4" value="gpt-4"></el-option>
-                <el-option label="gpt-4-turbo" value="gpt-4-turbo"></el-option>
-                <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo"></el-option>
-                <el-option label="gemini-2.5-pro" value="gemini-2.5-pro"></el-option>
-                <el-option label="kimi-k2" value="kimi-k2"></el-option>
-                <el-option label="qwen3-coder" value="qwen3-coder"></el-option>
-                <el-option label="grok-4" value="grok-4"></el-option>
-              </el-select>
+              </el-input>
               <div style="color: #999; font-size: 12px; margin-top: 5px;">
                 <i class="el-icon-info"></i>
-                主要用于复杂任务和深度分析，支持自定义输入模型名称
+                输入您的Claude API密钥，支持官方和第三方服务
               </div>
             </el-form-item>
             
-            <el-form-item label="辅助模型:" label-width="180px">
+            <!-- API渠道选择 -->
+            <el-form-item label="API渠道:" label-width="180px">
               <el-select 
-                v-model="spaceForm.small_model" 
-                placeholder="选择或输入辅助模型 (默认: claude-3-haiku-20240307)"
-                filterable
-                allow-create
+                v-model="spaceForm.anthropic_base_url" 
+                placeholder="选择API服务渠道"
                 clearable
                 style="width: 100%">
-                <el-option label="claude-3-haiku-20240307 (快速)" value="claude-3-haiku-20240307"></el-option>
-                <el-option label="claude-3-sonnet-20240229" value="claude-3-sonnet-20240229"></el-option>
-                <el-option label="claude-3-opus-20240229 (最强)" value="claude-3-opus-20240229"></el-option>
-                <el-option label="claude-3-5-sonnet-20241022" value="claude-3-5-sonnet-20241022"></el-option>
-                <el-option label="分隔线" value="" disabled style="color: #c0c4cc;">--- 新版本格式 ---</el-option>
-                <el-option label="anthropic/claude-haiku-4" value="anthropic/claude-haiku-4"></el-option>
-                <el-option label="anthropic/claude-opus-4" value="anthropic/claude-opus-4"></el-option>
-                <el-option label="claude-4-sonnet" value="claude-4-sonnet"></el-option>
-                <el-option label="claude-4-opus" value="claude-4-opus"></el-option>
-                <el-option label="claude-3.7-haiku" value="claude-3.7-haiku"></el-option>
-                <el-option label="claude-3.7-opus" value="claude-3.7-opus"></el-option>
-                <el-option label="claude-haiku-4-20250514" value="claude-haiku-4-20250514"></el-option>
-                <el-option label="claude-opus-4-20250514" value="claude-opus-4-20250514"></el-option>
-                <el-option label="分隔线" value="" disabled style="color: #c0c4cc;">--- 其他AI模型 ---</el-option>
-                <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo"></el-option>
-                <el-option label="gpt-4" value="gpt-4"></el-option>
-                <el-option label="gemini-2.5-pro" value="gemini-2.5-pro"></el-option>
-                <el-option label="kimi-k2" value="kimi-k2"></el-option>
-                <el-option label="qwen3-coder" value="qwen3-coder"></el-option>
-                <el-option label="grok-4" value="grok-4"></el-option>
+                <el-option label="🏢 Anthropic 官方 (api.anthropic.com)" value="https://api.anthropic.com"></el-option>
+                <el-option label="🚀 InstCopilot 加速 (sg.instcopilot-api.com)" value="https://sg.instcopilot-api.com"></el-option>
+                <el-option label="⚡ Claude Pro 代理" value="https://claude-proxy.com/v1"></el-option>
+                <el-option label="🌐 Claude API Gateway" value="https://gateway.claude-api.com"></el-option>
+                <el-option label="🔧 自定义地址..." value="custom"></el-option>
               </el-select>
               <div style="color: #999; font-size: 12px; margin-top: 5px;">
                 <i class="el-icon-info"></i>
-                用于快速响应和轻量级任务，支持自定义输入模型名称
+                选择API服务渠道，推荐使用InstCopilot加速服务
+              </div>
+            </el-form-item>
+            
+            <!-- 自定义API地址输入框 -->
+            <el-form-item v-if="spaceForm.anthropic_base_url === 'custom'" label="自定义地址:" label-width="180px">
+              <el-input 
+                v-model="customApiUrl" 
+                placeholder="请输入自定义API地址，如: https://your-api.com"
+                clearable
+                style="width: 100%"
+                @blur="handleCustomUrlChange">
+              </el-input>
+              <div style="color: #999; font-size: 12px; margin-top: 5px;">
+                <i class="el-icon-info"></i>
+                输入完整的API基础地址，确保地址格式正确
               </div>
             </el-form-item>
           </div>
@@ -409,25 +225,11 @@ export default {
             tmpl_id: 0,
             user_id: 0,
             git_repository: "",
-            // Anthropic API 配置
+            // Claude API 配置 - 简化版
             anthropic_auth_token: "",
-            anthropic_base_url: "",
-            // OpenAI API 配置
-            openai_api_key: "",
-            openai_base_url: "",
-            // DeepSeek API 配置
-            deepseek_api_key: "",
-            // Gemini API 配置
-            gemini_api_key: "",
-            // Moonshot API 配置
-            moonshot_api_key: "",
-            // Qwen API 配置
-            qwen_api_key: "",
-            // 模型配置
-            big_model: "",
-            small_model: "",
+            anthropic_base_url: "https://sg.instcopilot-api.com", // 默认使用InstCopilot
           },
-          selectedProviders: ['anthropic'], // 默认选择Anthropic
+          customApiUrl: "", // 用于自定义API地址输入
           selectedTemplate: null,
           vipInfo: {
             is_active: false,
@@ -558,20 +360,10 @@ export default {
             this.spaceForm.git_repository = ""
           }
           
-          // 清理所有AI提供商配置
+          // 清理Claude API配置
           this.spaceForm.anthropic_auth_token = ""
-          this.spaceForm.anthropic_base_url = ""
-          this.spaceForm.openai_api_key = ""
-          this.spaceForm.openai_base_url = ""
-          this.spaceForm.deepseek_api_key = ""
-          this.spaceForm.gemini_api_key = ""
-          this.spaceForm.moonshot_api_key = ""
-          this.spaceForm.qwen_api_key = ""
-          this.spaceForm.big_model = ""
-          this.spaceForm.small_model = ""
-          
-          // 重置提供商选择
-          this.selectedProviders = ['anthropic']
+          this.spaceForm.anthropic_base_url = "https://sg.instcopilot-api.com" // 重置为默认值
+          this.customApiUrl = "" // 清空自定义URL
           
           // 显示对话框
           this.dialogFormVisible = true
@@ -941,36 +733,17 @@ export default {
         }
       },
       
-      // 处理AI提供商选择变化
-      handleProviderChange(providers) {
-        console.log('选择的提供商:', providers)
-        
-        // 如果取消选择了某个提供商，清空对应的API配置
-        if (!providers.includes('anthropic')) {
-          this.spaceForm.anthropic_auth_token = ""
-          this.spaceForm.anthropic_base_url = ""
-        }
-        if (!providers.includes('openai')) {
-          this.spaceForm.openai_api_key = ""
-          this.spaceForm.openai_base_url = ""
-        }
-        if (!providers.includes('deepseek')) {
-          this.spaceForm.deepseek_api_key = ""
-        }
-        if (!providers.includes('gemini')) {
-          this.spaceForm.gemini_api_key = ""
-        }
-        if (!providers.includes('moonshot')) {
-          this.spaceForm.moonshot_api_key = ""
-        }
-        if (!providers.includes('qwen')) {
-          this.spaceForm.qwen_api_key = ""
-        }
-        
-        // 如果没有选择任何提供商，默认选择Anthropic
-        if (providers.length === 0) {
-          this.selectedProviders = ['anthropic']
-          this.$message.warning('至少需要选择一个AI提供商，已自动选择Anthropic')
+      // 处理自定义API地址变化
+      handleCustomUrlChange() {
+        if (this.customApiUrl && this.customApiUrl.trim()) {
+          // 验证URL格式
+          try {
+            new URL(this.customApiUrl.trim())
+            this.spaceForm.anthropic_base_url = this.customApiUrl.trim()
+          } catch (e) {
+            this.$message.error('请输入有效的URL地址')
+            this.customApiUrl = ""
+          }
         }
       }
       

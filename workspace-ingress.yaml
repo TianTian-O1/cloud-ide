@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: claude-workspace-6890325a5a3bfd0001cf6643-ingress
+  namespace: cloud-ide
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+  - host: tiantianai.co
+    http:
+      paths:
+      - path: /ws/6890325a5a3bfd0001cf6643(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: claude-workspace-6890325a5a3bfd0001cf6643-svc
+            port:
+              number: 9999

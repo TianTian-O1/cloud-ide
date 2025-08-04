@@ -94,59 +94,24 @@ func (c *CloudCodeService) CreateWorkspace(req *reqtype.SpaceCreateOption, userI
 	// 构建环境变量配置（特别是Claude模板）
 	envConfig := ""
 	if tmpl.Id == 7 {
-		// Claude模板支持多AI提供商配置
+		// Claude模板简化配置 - 仅需API密钥和API地址
 		envVars := make(map[string]string)
 		
-		// Anthropic API 配置
+		// Claude API 配置
 		if req.AnthropicAuthToken != "" {
 			envVars["ANTHROPIC_AUTH_TOKEN"] = req.AnthropicAuthToken
 		}
 		if req.AnthropicBaseURL != "" {
 			envVars["ANTHROPIC_BASE_URL"] = req.AnthropicBaseURL
-		}
-		
-		// OpenAI API 配置
-		if req.OpenAIAPIKey != "" {
-			envVars["OPENAI_API_KEY"] = req.OpenAIAPIKey
-		}
-		if req.OpenAIBaseURL != "" {
-			envVars["OPENAI_BASE_URL"] = req.OpenAIBaseURL
-		}
-		
-		// DeepSeek API 配置
-		if req.DeepSeekAPIKey != "" {
-			envVars["DEEPSEEK_API_KEY"] = req.DeepSeekAPIKey
-		}
-		
-		// Gemini API 配置
-		if req.GeminiAPIKey != "" {
-			envVars["GEMINI_API_KEY"] = req.GeminiAPIKey
-		}
-		
-		// Moonshot API 配置
-		if req.MoonshotAPIKey != "" {
-			envVars["MOONSHOT_API_KEY"] = req.MoonshotAPIKey
-		}
-		
-		// Qwen API 配置
-		if req.QwenAPIKey != "" {
-			envVars["QWEN_API_KEY"] = req.QwenAPIKey
-		}
-		
-		// 模型配置
-		if req.BigModel != "" {
-			envVars["BIG_MODEL"] = req.BigModel
 		} else {
-			envVars["BIG_MODEL"] = "claude-3-5-sonnet-20241022" // 默认大模型
-		}
-		if req.SmallModel != "" {
-			envVars["SMALL_MODEL"] = req.SmallModel
-		} else {
-			envVars["SMALL_MODEL"] = "claude-3-haiku-20240307" // 默认小模型
+			// 默认使用InstCopilot服务
+			envVars["ANTHROPIC_BASE_URL"] = "https://sg.instcopilot-api.com"
 		}
 		
 		if envData, err := json.Marshal(envVars); err == nil {
 			envConfig = string(envData)
+		} else {
+			c.logger.Errorf("Failed to marshal environment variables: %v", err)
 		}
 	}
 	
@@ -179,6 +144,39 @@ func (c *CloudCodeService) CreateWorkspace(req *reqtype.SpaceCreateOption, userI
 
 var ErrOtherSpaceIsRunning = errors.New("there is other space running")
 
+// cleanupStaleWorkspaces 清理可能的僵尸工作空间状态
+func (c *CloudCodeService) cleanupStaleWorkspaces(uid string) error {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancelFunc()
+	wss, err := c.rpc.RunningWorkspaces(ctx, &pb.RequestRunningWorkspaces{Uid: uid})
+	if err != nil {
+		c.logger.Errorf("get running workspaces for cleanup err=%v", err)
+		return err
+	}
+	
+	if len(wss.Workspaces) == 0 {
+		c.logger.Infof("no workspaces to cleanup for user %s", uid)
+		return nil
+	}
+	
+	c.logger.Infof("attempting to cleanup %d potentially stale workspaces for user %s", len(wss.Workspaces), uid)
+	
+	for _, ws := range wss.Workspaces {
+		c.logger.Infof("attempting to cleanup workspace %s", ws.Sid)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), time.Second*5)
+		_, cleanupErr := c.rpc.StopSpace(cleanupCtx, &pb.RequestStop{Sid: ws.Sid, Uid: uid})
+		cleanupCancel()
+		
+		if cleanupErr != nil {
+			c.logger.Warnf("failed to cleanup workspace %s: %v", ws.Sid, cleanupErr)
+		} else {
+			c.logger.Infof("successfully cleaned up workspace %s", ws.Sid)
+		}
+	}
+	
+	return nil
+}
+
 func (c *CloudCodeService) checkHasRunningWorkspace(uid string) (bool, error) {
 	// 1、检查是否有其它工作空间正在运行, 同时只能有一个工作空间启动
 	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
@@ -189,7 +187,10 @@ func (c *CloudCodeService) checkHasRunningWorkspace(uid string) (bool, error) {
 		return true, err
 	}
 	c.logger.Debug("running workspaces:", wss.Workspaces)
+	
 	if len(wss.Workspaces) > 0 {
+		c.logger.Warnf("user %s has %d running workspaces reported by control-plane", uid, len(wss.Workspaces))
+		// 直接阻止创建新工作空间，保护现有工作空间
 		return true, nil
 	}
 
@@ -199,16 +200,14 @@ func (c *CloudCodeService) checkHasRunningWorkspace(uid string) (bool, error) {
 // CreateAndStartWorkspace 创建并且启动云工作空间
 func (c *CloudCodeService) CreateAndStartWorkspace(req *reqtype.SpaceCreateOption, userId uint32, uid string) (*model.Space, error) {
 	// 1、检查是否有其它工作空间正在运行, 同时只能有一个工作空间启动
-	// 临时禁用此检查以修复竞态条件问题
-	// TODO: 需要改进逻辑，避免在创建过程中检查刚创建的工作空间
-	/*
 	if ok, err := c.checkHasRunningWorkspace(uid); err != nil || ok {
 		if err != nil {
+			c.logger.Errorf("check running workspace error: %v", err)
 			return nil, ErrSpaceCreate
 		}
+		c.logger.Warnf("user %s already has a running workspace", uid)
 		return nil, ErrOtherSpaceIsRunning
 	}
-	*/
 
 	// 2、创建工作空间
 	space, err := c.CreateWorkspace(req, userId)
@@ -311,15 +310,14 @@ var ErrWorkSpaceNotExist = errors.New("workspace is not exist")
 // StartWorkspace 启动云工作空间
 func (c *CloudCodeService) StartWorkspace(id, userId uint32, uid string) (*model.Space, error) {
 	// 1、检查是否有其它工作空间正在运行, 同时只能有一个工作空间启动
-	// 临时禁用此检查以修复竞态条件问题
-	/*
 	if ok, err := c.checkHasRunningWorkspace(uid); err != nil || ok {
 		if err != nil {
+			c.logger.Errorf("check running workspace error: %v", err)
 			return nil, ErrSpaceStart
 		}
+		c.logger.Warnf("user %s already has a running workspace", uid)
 		return nil, ErrOtherSpaceIsRunning
 	}
-	*/
 
 	// 2.查询该工作空间是否存在
 	space, err := c.dao.FindByIdAndUserId(id, userId)
