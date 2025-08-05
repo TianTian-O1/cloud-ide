@@ -195,9 +195,13 @@
           </div>
         </el-form>
         <div slot="footer" class="dialog-footer">
-          <el-button type="primary" @click="createSpaceAndStart">创建并启动</el-button>
-          <el-button type="primary" @click="createSpace">创建</el-button>
-          <el-button type="info" @click="dialogFormVisible = false">取 消</el-button>
+          <el-button type="primary" @click="createSpaceAndStart" :disabled="isCreating" :loading="isCreating">
+            {{ isCreating ? '创建中...' : '创建并启动' }}
+          </el-button>
+          <el-button type="primary" @click="createSpace" :disabled="isCreating" :loading="isCreating">
+            {{ isCreating ? '创建中...' : '创建' }}
+          </el-button>
+          <el-button type="info" @click="dialogFormVisible = false" :disabled="isCreating">取 消</el-button>
         </div>
       </el-dialog>
     </div>
@@ -219,6 +223,7 @@ export default {
           spaceTemplates: [],
           spaceSpecs: [],
           dialogFormVisible: false,
+          isCreating: false, // 防重复提交标志
           spaceForm: {
             name: "",
             space_spec_id: "",
@@ -649,10 +654,19 @@ export default {
         }
       },
       async createSpaceAndStart() {
+        // 防重复提交检查
+        if (this.isCreating) {
+          this.$message.warning('工作空间正在创建中，请稍候...')
+          return
+        }
+
         // 先进行权限验证，避免无权限时也显示loading
         if (!this.validateCreateInfo()) {
           return          
         }
+
+        // 设置创建中状态
+        this.isCreating = true
 
         // 添加详细的参数调试
         console.log('=== 准备创建并启动空间 ===')
@@ -669,7 +683,7 @@ export default {
 
         const loading = this.$loading({
             lock: true,
-            text: 'Loading',
+            text: '正在创建工作空间，请勿重复操作...',
             spinner: 'el-icon-loading',
             background: 'rgba(0, 0, 0, 0.7)'
         });
@@ -681,11 +695,13 @@ export default {
             console.log('完整响应:', JSON.stringify(res, null, 2))
           this.$message.error(res.message)
           loading.close()
+          this.isCreating = false
           return
         }
 
         setTimeout(() => {
           loading.close()
+          this.isCreating = false
           const spaceUrl =  this.$axios.defaults.workspaceUrl + res.data.sid + "/"
           window.open(spaceUrl, '_blank')
         }, 2000);
@@ -694,14 +710,24 @@ export default {
           console.log('错误详情:', error.response?.data)
           this.$message.error('创建空间时发生错误: ' + (error.response?.data?.message || error.message))
           loading.close()
+          this.isCreating = false
         }
         
       },
       async createSpace() {
+        // 防重复提交检查
+        if (this.isCreating) {
+          this.$message.warning('工作空间正在创建中，请稍候...')
+          return
+        }
+
         // 先进行权限验证，避免无权限时也显示loading
         if (!this.validateCreateInfo()) {
           return          
         }
+
+        // 设置创建中状态
+        this.isCreating = true
 
         // 添加详细的参数调试
         console.log('=== 准备创建空间 ===')
@@ -730,6 +756,8 @@ export default {
           console.error('API调用出错:', error)
           console.log('错误详情:', error.response?.data)
           this.$message.error('创建空间时发生错误: ' + (error.response?.data?.message || error.message))
+        } finally {
+          this.isCreating = false
         }
       },
       

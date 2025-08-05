@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/mangohow/cloud-ide/cmd/webserver/internal/caches"
@@ -197,25 +200,101 @@ func (c *CloudCodeService) checkHasRunningWorkspace(uid string) (bool, error) {
 	return false, nil
 }
 
+// tryAcquireLock 尝试获取分布式锁（简单的文件锁实现）
+func (c *CloudCodeService) tryAcquireLock(lockKey string) bool {
+	lockFile := fmt.Sprintf("/tmp/%s.lock", lockKey)
+	
+	// 检查锁文件是否存在且未过期
+	if info, err := os.Stat(lockFile); err == nil {
+		// 如果锁文件存在但超过30秒，认为是过期锁，删除它
+		if time.Since(info.ModTime()) > 30*time.Second {
+			os.Remove(lockFile)
+		} else {
+			return false
+		}
+	}
+	
+	// 尝试创建锁文件
+	file, err := os.OpenFile(lockFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return false
+	}
+	
+	file.WriteString(fmt.Sprintf("pid:%d,time:%d", os.Getpid(), time.Now().Unix()))
+	file.Close()
+	return true
+}
+
+// releaseLock 释放分布式锁
+func (c *CloudCodeService) releaseLock(lockKey string) {
+	lockFile := fmt.Sprintf("/tmp/%s.lock", lockKey)
+	os.Remove(lockFile)
+}
+
+// checkDatabaseRunningWorkspace 检查数据库中是否有运行中的工作空间
+func (c *CloudCodeService) checkDatabaseRunningWorkspace(userId uint32) error {
+	spaces, err := c.dao.FindAllSpaceByUserId(userId)
+	if err != nil {
+		c.logger.Errorf("failed to query user spaces: %v", err)
+		return err
+	}
+	
+	for _, space := range spaces {
+		if space.Status == 1 { // SpaceStatusAvailable
+			c.logger.Warnf("found running/starting workspace in database: %s", space.Sid)
+			return fmt.Errorf("user already has running workspace")
+		}
+	}
+	
+	return nil
+}
+
 // CreateAndStartWorkspace 创建并且启动云工作空间
 func (c *CloudCodeService) CreateAndStartWorkspace(req *reqtype.SpaceCreateOption, userId uint32, uid string) (*model.Space, error) {
-	// 1、检查是否有其它工作空间正在运行, 同时只能有一个工作空间启动
+	// 使用分布式锁防止并发创建
+	lockKey := fmt.Sprintf("workspace_create_lock:%s", uid)
+	
+	// 尝试获取锁，最多等待10秒
+	lockAcquired := false
+	for i := 0; i < 20; i++ { // 20 * 500ms = 10s
+		if c.tryAcquireLock(lockKey) {
+			lockAcquired = true
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	
+	if !lockAcquired {
+		c.logger.Warnf("failed to acquire lock for user %s workspace creation", uid)
+		return nil, ErrOtherSpaceIsRunning
+	}
+	
+	// 确保释放锁
+	defer c.releaseLock(lockKey)
+	
+	// 1、再次检查是否有其它工作空间正在运行（双重检查）
 	if ok, err := c.checkHasRunningWorkspace(uid); err != nil || ok {
 		if err != nil {
 			c.logger.Errorf("check running workspace error: %v", err)
 			return nil, ErrSpaceCreate
 		}
-		c.logger.Warnf("user %s already has a running workspace", uid)
+		c.logger.Warnf("user %s already has a running workspace (double check)", uid)
 		return nil, ErrOtherSpaceIsRunning
 	}
 
-	// 2、创建工作空间
+	// 2、检查数据库中是否已有该用户的运行中工作空间
+	if err := c.checkDatabaseRunningWorkspace(userId); err != nil {
+		c.logger.Warnf("user %d already has running workspace in database", userId)
+		return nil, ErrOtherSpaceIsRunning
+	}
+
+	// 3、创建工作空间
 	space, err := c.CreateWorkspace(req, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3、真正的创建并且启动工作空间
+	// 4、真正的创建并且启动工作空间
 	return c.createAndStartWorkspace(space, uid)
 }
 
@@ -530,4 +609,34 @@ func (c *CloudCodeService) ModifyName(name string, id, userId uint32) error {
 // generateSID 生成Space id
 func generateSID() string {
 	return bson.NewObjectId().Hex()
+}
+
+// VerifyWorkspaceAccess 验证用户是否有权限访问指定的工作空间
+// uid: 用户ID
+// sid: 工作空间会话ID
+func (s *CloudCodeService) VerifyWorkspaceAccess(uid, sid string) (bool, error) {
+	// 通过数据库查询该用户是否拥有这个sid对应的工作空间
+	// 从uid字符串中提取用户ID
+	userId, err := strconv.ParseUint(uid, 10, 32)
+	if err != nil {
+		s.logger.Errorf("Failed to parse user ID from uid %s: %v", uid, err)
+		return false, err
+	}
+	
+	spaces, err := s.dao.FindAllSpaceByUserId(uint32(userId))
+	if err != nil {
+		s.logger.Errorf("Failed to get spaces for user %s: %v", uid, err)
+		return false, err
+	}
+
+	// 检查用户的工作空间列表中是否包含该sid
+	for _, space := range spaces {
+		if space.Sid == sid {
+			s.logger.Debugf("User %s has access to workspace %s", uid, sid)
+			return true, nil
+		}
+	}
+
+	s.logger.Warnf("User %s does not have access to workspace %s", uid, sid)
+	return false, nil
 }

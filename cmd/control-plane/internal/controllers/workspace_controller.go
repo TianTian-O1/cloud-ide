@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -80,7 +79,7 @@ func (r *WorkSpaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// 1.先查询WorkSpace
 	ws := mv1.WorkSpace{}
 	err := r.Client.Get(ctx, req.NamespacedName, &ws)
-	// case 1、没有找到Workspace,说明WorkSpace被删除了,删除对应的Pod、PVC和Service
+	// case 1、没有找到Workspace,说明WorkSpace被删除了,删除对应的Pod和PVC即可
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if err := r.deletePod(ctx, req.NamespacedName); err != nil {
@@ -89,10 +88,6 @@ func (r *WorkSpaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}
 			if err := r.deletePVC(ctx, req.NamespacedName); err != nil {
 				lgr.Error(err, "delete pvc")
-				return ctrl.Result{Requeue: true}, err
-			}
-			if err := r.deleteService(ctx, req.NamespacedName); err != nil {
-				lgr.Error(err, "delete service")
 				return ctrl.Result{Requeue: true}, err
 			}
 
@@ -119,25 +114,13 @@ func (r *WorkSpaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			lgr.Error(err, "create pod")
 			return ctrl.Result{Requeue: true}, err
 		}
-		// 创建Service
-		err = r.createService(ctx, &ws, req.NamespacedName)
-		if err != nil {
-			lgr.Error(err, "create service")
-			return ctrl.Result{Requeue: true}, err
-		}
 
-	// case3: 停止WorkSpace,删除Pod和Service
+	// case3: 停止WorkSpace,删除Pod
 	case mv1.WorkSpaceStop:
 		// 删除Pod
 		err = r.deletePod(ctx, req.NamespacedName)
 		if err != nil {
 			lgr.Error(err, "delete pod")
-			return ctrl.Result{Requeue: true}, err
-		}
-		// 删除Service
-		err = r.deleteService(ctx, req.NamespacedName)
-		if err != nil {
-			lgr.Error(err, "delete service")
 			return ctrl.Result{Requeue: true}, err
 		}
 	}
@@ -541,118 +524,6 @@ func (r *WorkSpaceReconciler) deletePVC(ctx context.Context, key client.ObjectKe
 		}
 
 		lgr.Error(err, "delete pvc")
-		return err
-	}
-
-	return nil
-}
-
-// createService 创建工作空间的Service
-func (r *WorkSpaceReconciler) createService(ctx context.Context, space *mv1.WorkSpace, key client.ObjectKey) error {
-	// 1.检查Service是否存在
-	exist, err := r.checkServiceExist(ctx, key)
-	if err != nil {
-		return err
-	}
-
-	// Service已存在,直接返回
-	if exist {
-		return nil
-	}
-
-	// 2.创建Service
-	service := r.constructService(space)
-
-	// 设置控制器
-	if err = controllerutil.SetControllerReference(space, service, r.Scheme); err != nil {
-		return err
-	}
-
-	ctx, cancelFunc := context.WithTimeout(ctx, time.Second*30)
-	defer cancelFunc()
-	err = r.Client.Create(ctx, service)
-	if err != nil {
-		// 如果Service已经存在,直接返回
-		if errors.IsAlreadyExists(err) {
-			return nil
-		}
-
-		return err
-	}
-
-	return nil
-}
-
-// constructService 构造Service对象
-func (r *WorkSpaceReconciler) constructService(space *mv1.WorkSpace) *v1.Service {
-	return &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      space.Name,
-			Namespace: space.Namespace,
-			Labels: map[string]string{
-				"app": "cloud-ide",
-			},
-		},
-		Spec: v1.ServiceSpec{
-			Selector: map[string]string{
-				"app": "cloud-ide",
-				"sid": space.Spec.SID,
-			},
-			Ports: []v1.ServicePort{
-				{
-					Port:       space.Spec.Port,
-					TargetPort: intstr.FromInt(int(space.Spec.Port)),
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
-			Type: v1.ServiceTypeClusterIP,
-		},
-	}
-}
-
-// checkServiceExist 检查Service是否存在
-func (r *WorkSpaceReconciler) checkServiceExist(ctx context.Context, key client.ObjectKey) (bool, error) {
-	service := &v1.Service{}
-	err := r.Client.Get(ctx, key, service)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
-// deleteService 删除Service
-func (r *WorkSpaceReconciler) deleteService(ctx context.Context, key client.ObjectKey) error {
-	lgr := log.FromContext(ctx)
-	
-	// 检查Service是否存在
-	exist, err := r.checkServiceExist(ctx, key)
-	if err != nil {
-		return err
-	}
-
-	// Service不存在,无需再删除
-	if !exist {
-		return nil
-	}
-
-	service := &v1.Service{}
-	service.Name = key.Name
-	service.Namespace = key.Namespace
-
-	ctx, cancelFunc := context.WithTimeout(ctx, time.Second*30)
-	defer cancelFunc()
-	err = r.Client.Delete(ctx, service)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
-
-		lgr.Error(err, "delete service")
 		return err
 	}
 

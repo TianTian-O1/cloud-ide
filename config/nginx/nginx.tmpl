@@ -80,7 +80,7 @@ http {
         location ^~ /ws/ {
             set $backend '';
             set $pth '';
-            rewrite_by_lua_file '{{.NginxLuaPath}}/proxy.lua';
+            rewrite_by_lua_file '{{.NginxLuaPath}}/auth_proxy.lua';
 
             # WebSocket support
             proxy_http_version 1.1;

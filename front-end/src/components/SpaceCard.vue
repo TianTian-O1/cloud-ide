@@ -184,7 +184,10 @@ export default {
             contextMenuY: 0,
             
             // 设备检测
-            isMobile: false
+            isMobile: false,
+            
+            // 防重复提交
+            isStarting: false
         }
     },
     computed: {
@@ -365,10 +368,19 @@ export default {
             if (this.space.running_status) {
                 return
             }
+
+            // 防重复提交检查
+            if (this.isStarting) {
+                this.$message.warning('工作空间正在启动中，请稍候...')
+                return
+            }
+
+            this.isStarting = true
+
             // 记载中动画
             const loading = this.$loading({
                 lock: true,
-                text: '正在启动工作空间...',
+                text: '正在启动工作空间，请勿重复操作...',
                 spinner: 'el-icon-loading',
                 background: 'rgba(0, 0, 0, 0.7)'
             });
@@ -378,12 +390,14 @@ export default {
                 if (res.status) {
                     this.$message.error(res.message)
                     loading.close()
+                    this.isStarting = false
                     return
                 }
 
                 // 2s钟后在打开
                 setTimeout(() => {
                     loading.close()
+                    this.isStarting = false
                     this.$message.success(res.message)
                     const url = this.$axios.defaults.workspaceUrl + res.data.sid + "/"
                     window.open(url, "_blank")
@@ -392,6 +406,7 @@ export default {
                 }, 2000);           
             } catch (error) {
                 loading.close()
+                this.isStarting = false
                 this.$message.error('启动失败')
             }
         },

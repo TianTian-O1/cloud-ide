@@ -53,6 +53,7 @@ const (
 	SpaceAlreadyExist
 	SpaceNotFound
 	ResourceExhausted
+	PermissionDenied
 	
 	// 支付相关错误码
 	PaymentSuccess
@@ -110,6 +111,7 @@ var messageForCode = map[int]string{
 	SpaceAlreadyExist:           "工作空间已存在",
 	SpaceNotFound:               "未找到该工作空间",
 	ResourceExhausted:           "资源不足,无法启动工作空间",
+	PermissionDenied:            "权限不足",
 	PaymentSuccess:              "支付成功",
 	PaymentFailed:               "支付失败",
 	PaymentCallbackSuccess:      "支付回调处理成功",

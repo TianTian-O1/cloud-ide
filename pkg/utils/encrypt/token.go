@@ -54,5 +54,61 @@ func VerifyToken(token string) (string, string, uint32, error) {
 		return "", "", 0, errors.New("parse Error")
 	}
 
-	return claim["Username"].(string), claim["Uid"].(string), uint32(claim["Id"].(float64)), nil
+	// 安全地提取Username
+	username, ok := claim["Username"].(string)
+	if !ok {
+		return "", "", 0, errors.New("invalid Username in token")
+	}
+
+	// 安全地提取Uid
+	uid, ok := claim["Uid"].(string)
+	if !ok {
+		return "", "", 0, errors.New("invalid Uid in token")
+	}
+
+	// 安全地提取Id，支持多种数字类型
+	var id uint32
+	switch v := claim["Id"].(type) {
+	case float64:
+		if v < 0 || v > float64(^uint32(0)) {
+			return "", "", 0, errors.New("invalid Id range in token")
+		}
+		id = uint32(v)
+	case float32:
+		if v < 0 || v > float32(^uint32(0)) {
+			return "", "", 0, errors.New("invalid Id range in token")
+		}
+		id = uint32(v)
+	case int:
+		if v < 0 || v > int(^uint32(0)) {
+			return "", "", 0, errors.New("invalid Id range in token")
+		}
+		id = uint32(v)
+	case int32:
+		if v < 0 {
+			return "", "", 0, errors.New("invalid Id range in token")
+		}
+		id = uint32(v)
+	case int64:
+		if v < 0 || v > int64(^uint32(0)) {
+			return "", "", 0, errors.New("invalid Id range in token")
+		}
+		id = uint32(v)
+	case uint32:
+		id = v
+	case uint64:
+		if v > uint64(^uint32(0)) {
+			return "", "", 0, errors.New("invalid Id range in token")
+		}
+		id = uint32(v)
+	default:
+		return "", "", 0, errors.New("invalid Id type in token")
+	}
+
+	// 验证Id不能为0
+	if id == 0 {
+		return "", "", 0, errors.New("invalid user Id: cannot be zero")
+	}
+
+	return username, uid, id, nil
 }

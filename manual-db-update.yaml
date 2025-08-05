@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: manual-db-update
+  namespace: cloud-ide
+spec:
+  template:
+    spec:
+      serviceAccountName: storage-manager
+      restartPolicy: OnFailure
+      containers:
+      - name: db-update
+        image: bitnami/kubectl:latest
+        env:
+        - name: MYSQL_HOST
+          value: "mysql-service.cloud-ide.svc.cluster.local"
+        - name: MYSQL_USER
+          value: "root"
+        - name: MYSQL_PASSWORD
+          value: "123456"
+        - name: MYSQL_DATABASE
+          value: "cloud_ide"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          #!/bin/bash
+          echo "Starting manual database update..."
+          
+          # 安装mysql客户端
+          apt-get update && apt-get install -y mysql-client
+          
+          echo "Connecting to MySQL at $MYSQL_HOST"
+          
+          # 添加last_access_time字段
+          echo "Adding last_access_time column..."
+          mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "
+            ALTER TABLE t_space ADD COLUMN IF NOT EXISTS last_access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+          " 2>/dev/null || echo "Column may already exist"
+          
+          # 验证字段是否添加成功
+          echo "Verifying column addition..."
+          mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "
+            DESCRIBE t_space;
+          " 2>/dev/null | grep last_access
+          
+          # 初始化现有记录的last_access_time
+          echo "Initializing last_access_time for existing records..."
+          mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "
+            UPDATE t_space SET last_access_time = create_time WHERE last_access_time IS NULL;
+          " 2>/dev/null
+          
+          echo "Database update completed successfully"

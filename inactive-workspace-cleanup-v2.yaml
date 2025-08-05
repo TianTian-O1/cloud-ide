@@ -1,0 +1,101 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: inactive-workspace-cleanup
+  namespace: cloud-ide
+spec:
+  schedule: "0 3 * * *"  # 每天凌晨3点执行
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: storage-manager
+          restartPolicy: OnFailure
+          containers:
+          - name: cleanup
+            image: bitnami/kubectl:latest
+            env:
+            - name: MYSQL_HOST
+              value: "mysql-service.cloud-ide.svc.cluster.local"
+            - name: MYSQL_USER
+              value: "root"
+            - name: MYSQL_PASSWORD
+              value: "123456"
+            - name: MYSQL_DATABASE
+              value: "cloud_ide"
+            command:
+            - /bin/bash
+            - -c
+            - |
+              #!/bin/bash
+              echo "Starting inactive workspace cleanup..."
+              
+              NAMESPACE="cloud-ide-ws"
+              
+              # 安装mysql客户端
+              apt-get update && apt-get install -y mysql-client
+              
+              echo "Connecting to MySQL at $MYSQL_HOST"
+              
+              # 首先尝试添加last_access_time字段（如果不存在）
+              mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "
+                ALTER TABLE t_space ADD COLUMN IF NOT EXISTS last_access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+              " 2>/dev/null || echo "Field may already exist"
+              
+              # 查找1天前未访问的工作空间
+              echo "Finding inactive workspaces (not accessed for 1 day)..."
+              
+              INACTIVE_WORKSPACES=$(mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -sN -e "
+                SELECT sid FROM t_space 
+                WHERE status = 1 
+                AND (last_access_time IS NULL OR last_access_time < DATE_SUB(NOW(), INTERVAL 1 DAY))
+              " 2>/dev/null)
+              
+              if [ -z "$INACTIVE_WORKSPACES" ]; then
+                echo "No inactive workspaces found"
+                exit 0
+              fi
+              
+              echo "Found inactive workspaces:"
+              echo "$INACTIVE_WORKSPACES"
+              
+              # 清理不活跃的工作空间
+              for sid in $INACTIVE_WORKSPACES; do
+                echo "Processing workspace: $sid"
+                
+                # 查找对应的WorkSpace资源
+                WORKSPACE_NAMES=$(kubectl get workspace -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" | grep $sid)
+                
+                if [ -n "$WORKSPACE_NAMES" ]; then
+                  for WORKSPACE_NAME in $WORKSPACE_NAMES; do
+                    echo "Deleting workspace: $WORKSPACE_NAME"
+                    kubectl delete workspace $WORKSPACE_NAME -n $NAMESPACE --timeout=60s --ignore-not-found=true
+                  done
+                  
+                  # 等待资源清理
+                  sleep 5
+                  
+                  # 检查Pod是否还存在并强制删除
+                  POD_NAMES=$(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" | grep $sid)
+                  if [ -n "$POD_NAMES" ]; then
+                    for POD_NAME in $POD_NAMES; do
+                      echo "Force deleting pod: $POD_NAME"
+                      kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true
+                    done
+                  fi
+                fi
+                
+                # 更新数据库状态为已删除
+                mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "
+                  UPDATE t_space SET status = 0, delete_time = NOW() WHERE sid = '$sid'
+                " 2>/dev/null
+                
+                echo "Workspace $sid cleaned up successfully"
+              done
+              
+              # 统计清理结果
+              CLEANED_COUNT=$(echo "$INACTIVE_WORKSPACES" | wc -l)
+              echo "Inactive workspace cleanup completed. Cleaned $CLEANED_COUNT workspaces."

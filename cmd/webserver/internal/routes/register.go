@@ -71,6 +71,14 @@ func Register(engine *gin.Engine) {
 		callbackGroup.Any("/callback", router.HandlerAdapter(paymentController.PaymentCallback))
 		callbackGroup.GET("/return", router.HandlerAdapter(paymentController.PaymentReturn))
 	}
+
+	// 内部API路由（供网关等内部服务调用）
+	internalController := controller.NewInternalController()
+	internalGroup := engine.Group("/api/internal")
+	{
+		// 验证工作空间访问权限 - 供网关调用
+		internalGroup.POST("/verify-workspace-access", router.HandlerAdapter(internalController.VerifyWorkspaceAccess))
+	}
 }
 
 // corsMiddleware 添加CORS支持
