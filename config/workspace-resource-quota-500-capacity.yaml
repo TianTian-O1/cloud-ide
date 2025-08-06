@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: workspace-resource-quota
+  namespace: cloud-ide-ws
+spec:
+  hard:
+    # 支持500个工作空间的配额设置
+    limits.cpu: "1000"           # 1000核CPU限制
+    limits.memory: "1000Gi"      # 1000Gi内存限制
+    persistentvolumeclaims: "500" # 500个存储卷
+    pods: "500"                  # 500个Pod
+    requests.cpu: "100"          # 100核CPU请求
+    requests.memory: "200Gi"     # 200Gi内存请求
+    services: "500"              # 500个服务

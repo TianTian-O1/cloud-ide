@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workspace-cleanup-config
+  namespace: cloud-ide-ws
+data:
+  # 清理策略配置
+  max_workspace_age_hours: "8"           # 超过8小时的工作空间被清理
+  cleanup_batch_size: "10"              # 每次清理10个工作空间
+  cleanup_interval_minutes: "30"        # 每30分钟检查一次
+  memory_threshold_percent: "85"        # 内存使用率超过85%触发清理
+  min_workspaces_to_keep: "50"          # 最少保留50个工作空间
+  exclude_patterns: "admin-,test-,demo-" # 排除的工作空间名称模式

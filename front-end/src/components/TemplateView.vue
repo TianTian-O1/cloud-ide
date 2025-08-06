@@ -160,8 +160,8 @@
                 style="width: 100%">
                 <el-option label="🏢 Anthropic 官方 (api.anthropic.com)" value="https://api.anthropic.com"></el-option>
                 <el-option label="🚀 InstCopilot 加速 (sg.instcopilot-api.com)" value="https://sg.instcopilot-api.com"></el-option>
-                <el-option label="⚡ Claude Pro 代理" value="https://claude-proxy.com/v1"></el-option>
-                <el-option label="🌐 Claude API Gateway" value="https://gateway.claude-api.com"></el-option>
+                <el-option label="⚡ https://tiantianai.pro" value="https://tiantianai.pro/api"></el-option>
+                <el-option label="🌐 https://www.workerapi.com" value="https://www.workerapi.com"></el-option>
                 <el-option label="🔧 自定义地址..." value="custom"></el-option>
               </el-select>
               <div style="color: #999; font-size: 12px; margin-top: 5px;">

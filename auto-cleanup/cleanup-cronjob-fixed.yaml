@@ -1,0 +1,138 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: workspace-auto-cleanup
+  namespace: cloud-ide-ws
+  labels:
+    app: workspace-cleanup
+    component: automation
+spec:
+  schedule: "*/30 * * * *"
+  timeZone: "Asia/Shanghai"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app: workspace-cleanup
+            job: auto-cleanup
+        spec:
+          serviceAccountName: workspace-cleanup-sa
+          restartPolicy: Never
+          containers:
+          - name: cleanup
+            image: bitnami/kubectl:latest
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "🚀 [$(date)] 自动清理任务开始..."
+              
+              NAMESPACE="cloud-ide-ws"
+              CONFIG_MAP="workspace-cleanup-config"
+              
+              # 获取配置函数
+              get_config() {
+                  kubectl get configmap $CONFIG_MAP -n $NAMESPACE -o jsonpath="{.data.$1}" 2>/dev/null || echo ""
+              }
+              
+              # 获取内存使用率
+              get_memory_usage() {
+                  kubectl describe nodes | grep "memory.*Mi.*%" | sed 's/.*(\([0-9]*\)%).*/\1/' | head -1
+              }
+              
+              # 获取工作空间数量
+              get_workspace_count() {
+                  kubectl get pods -n $NAMESPACE --no-headers | grep "^ws-" | wc -l
+              }
+              
+              echo "📊 读取清理配置..."
+              MAX_AGE=$(get_config "max_workspace_age_hours")
+              BATCH_SIZE=$(get_config "cleanup_batch_size")
+              MEMORY_THRESHOLD=$(get_config "memory_threshold_percent")
+              MIN_WORKSPACES=$(get_config "min_workspaces_to_keep")
+              
+              # 设置默认值
+              MAX_AGE=${MAX_AGE:-8}
+              BATCH_SIZE=${BATCH_SIZE:-10}
+              MEMORY_THRESHOLD=${MEMORY_THRESHOLD:-85}
+              MIN_WORKSPACES=${MIN_WORKSPACES:-50}
+              
+              echo "⚙️ 配置: 最大年龄=${MAX_AGE}h, 批次=${BATCH_SIZE}, 内存阈值=${MEMORY_THRESHOLD}%, 最小保留=${MIN_WORKSPACES}"
+              
+              # 检查当前状态
+              CURRENT_MEMORY=$(get_memory_usage)
+              CURRENT_WORKSPACES=$(get_workspace_count)
+              
+              echo "📈 当前状态: 内存使用率=${CURRENT_MEMORY}%, 工作空间数量=${CURRENT_WORKSPACES}"
+              
+              # 判断是否需要清理
+              NEED_CLEANUP=false
+              if [ "$CURRENT_MEMORY" -gt "$MEMORY_THRESHOLD" ]; then
+                  echo "🚨 内存使用率${CURRENT_MEMORY}%超过阈值${MEMORY_THRESHOLD}%"
+                  NEED_CLEANUP=true
+              elif [ "$CURRENT_WORKSPACES" -gt 120 ]; then
+                  echo "🚨 工作空间数量${CURRENT_WORKSPACES}超过建议值120"
+                  NEED_CLEANUP=true
+              fi
+              
+              if [ "$NEED_CLEANUP" = "false" ]; then
+                  echo "✅ 系统状态良好，无需清理"
+                  exit 0
+              fi
+              
+              # 安全检查
+              if [ "$CURRENT_WORKSPACES" -le "$MIN_WORKSPACES" ]; then
+                  echo "⚠️ 工作空间数量${CURRENT_WORKSPACES}已达到最小保留值${MIN_WORKSPACES}，跳过清理"
+                  exit 0
+              fi
+              
+              echo "🔍 查找超过${MAX_AGE}小时的旧工作空间..."
+              
+              # 获取旧工作空间
+              OLD_WORKSPACES=$(kubectl get pods -n $NAMESPACE --sort-by='.metadata.creationTimestamp' --no-headers | grep "^ws-" | awk '$5 ~ /[8-9][0-9]*h|[1-9][0-9]h/ {print $1}' | head -$BATCH_SIZE)
+              
+              if [ -z "$OLD_WORKSPACES" ]; then
+                  echo "✅ 未发现需要清理的旧工作空间"
+                  exit 0
+              fi
+              
+              echo "📋 发现需要清理的工作空间:"
+              echo "$OLD_WORKSPACES"
+              
+              # 执行清理
+              CLEANED=0
+              for workspace in $OLD_WORKSPACES; do
+                  echo "🗑️ 清理工作空间: $workspace"
+                  if kubectl delete workspace "$workspace" -n $NAMESPACE --timeout=30s 2>/dev/null; then
+                      echo "✅ 成功删除: $workspace"
+                      CLEANED=$((CLEANED + 1))
+                  else
+                      echo "❌ 删除失败: $workspace"
+                  fi
+                  sleep 2
+              done
+              
+              echo "🎉 自动清理完成! 成功清理了${CLEANED}个工作空间"
+              
+              # 检查清理效果
+              sleep 5
+              NEW_MEMORY=$(get_memory_usage)
+              NEW_WORKSPACES=$(get_workspace_count)
+              
+              echo "📊 清理效果: 内存 ${CURRENT_MEMORY}% → ${NEW_MEMORY}%, 工作空间 ${CURRENT_WORKSPACES} → ${NEW_WORKSPACES}"
+              echo "✅ [$(date)] 自动清理任务完成"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 256Mi
