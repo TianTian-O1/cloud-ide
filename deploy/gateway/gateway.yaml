@@ -29,7 +29,7 @@ spec:
             - -nginx-conf-path         # 配置文件路径
             - "/usr/local/openresty/nginx/conf"
             - -endpoint-token          # 服务发现的token
-            - "XnRbVnoUZa0rT9xKAwHX0Zof3H7VpfCe"
+            - "YOUR_GATEWAY_TOKEN_HERE"
             - -debug                   # 开启debug接口
             - "disabled"
             - -server-crt              # https证书

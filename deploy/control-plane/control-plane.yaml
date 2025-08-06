@@ -26,7 +26,7 @@ spec:
           - -mode                        # 电脑配置低的情况下最好运行在dev模式，否则workspace会由于资源不足无法启动
           - "dev"
           - -gateway-token               # 指定访问gateway注册Workspace时的token
-          - "XnRbVnoUZa0rT9xKAwHX0Zof3H7VpfCe"
+          - "YOUR_GATEWAY_TOKEN_HERE"
           - -gateway-path                # 指定gateway中注册Workspace的HTTPS路径
           - "/internal/endpoint"
           - -gateway-service             # 指定gateway的service名称
